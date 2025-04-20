@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 0 0% 93%;
+        --foreground: 220 18.37% 19.22%;
+
+        --card: 0 0% 93%;
+        --card-foreground: 220 18.37% 19.22%;
+
+        --popover: 0 0% 93%;
+        --popover-foreground: 220 18.37% 19.22%;
+
+        --primary: 37.36 42.4% 75.49%;
+        --primary-foreground: 0 0% 93%;
+
+        --secondary: 212.31 17.57% 29.02%;
+        --secondary-foreground: 37.36 42.4% 75.49%;
+
+        --muted: 212.31 17.57% 29.02%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+
+        --accent: 212.31 17.57% 29.02%;
+        --accent-foreground: 37.36 42.4% 75.49%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 0 0% 93%;
+
+        --border: 12 6% 85.55%;
+        --input: 12 6% 85.55%;
+        --ring: 212.31 17.57% 29.02%;
+
+        --radius: 0.5rem;
+    }
+
+    .dark {
+        --background: 220 18.37% 19.22%;
+        --foreground: 0 0% 93%;
+
+        --card: 220 18.37% 19.22%;
+        --card-foreground: 0 0% 93%;
+
+        --popover: 220 18.37% 19.22%;
+        --popover-foreground: 0 0% 93%;
+
+        --primary: 37.36 42.4% 75.49%;
+        --primary-foreground: 37.36 42.4% 75.49%;
+
+        --secondary: 212.31 17.57% 29.02%;
+        --secondary-foreground: 0 0% 93%;
+
+        --muted: 212.31 17.57% 29.02%;
+        --muted-foreground: 215 20.2% 65.1%;
+
+        --accent: 212.31 17.57% 29.02%;
+        --accent-foreground: 0 0% 93%;
+
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 93%;
+
+        --border: 212.31 17.57% 29.02%;
+        --input: 212.31 17.57% 29.02%;
+        --ring: 212.7 26.8% 83.9%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* @font-face {
+    font-family: 'made-cannes';
+    src: url('./assets/fonts/made_cannes/Made-Cannes.otf') format('truetype');
+}
+
+@font-face {
+    font-family: 'gotham';
+    src: url('./assets/fonts/Gotham-Font/Gotham-Bold.otf') format('truetype');
+} */
+
+
+
+
+
+.abtWrap {
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+    padding-bottom: 30px;
+    border-bottom: 2px solid #e7e7e7;
+    margin-bottom: 30px;
+    cursor: pointer;
+}
+
+.rigtWrp p {
+    margin-bottom: 0px;
+    opacity: 0;
+    transition-duration: 1s;
+}
+
+.abtWrap .leftWrp {
+    min-width: 250px;
+}
+.abtWrap .leftWrp h6 {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+.abtWrap .leftWrp img {
+    min-width: 210px;
+    filter: grayscale(100%);
+}
+.abtWrap:hover .leftWrp img {
+    filter: grayscale(0%);
+}
+
+.abt-1 {
+    animation: 2s ease-out 0s 1 slideInLeft;
+}
+.abt-2 {
+    animation: 3s ease-out 0s 1 slideInLeft;
+}
+.abt-3 {
+    animation: 4s ease-out 0s 1 slideInLeft;
+}
+.abt-4 {
+    animation: 5s ease-out 0s 1 slideInLeft;
+}
+.abt-5 {
+    animation: 6s ease-out 0s 1 slideInLeft;
+}
+.abt-6 {
+    animation: 7s ease-out 0s 1 slideInLeft;
+    border-bottom: 0px !important;
+}
+.btncnt {
+    margin-right: 0px !important;
+    margin-left: 25px;
+    background: #707070;
+    color: #fff;
+}
+.footer {
+    position: relative;
+}
+.footer::after {
+    content: " ";
+    width: 100%;
+    position: absolute;
+    background: #707070;
+    height: 1px;
+    left: 0;
+    top: -15px;
+}
+.btmtxt {
+    margin-bottom: 0px;
+    padding-top: 15px;
+}
+.menu-item.active .link__inner .link__default-text {
+    border-bottom: 2px solid #e7be4c !important;
+}
+@keyframes slideInLeft {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+@keyframes slideInRight {
+    0% {
+        transform: translateY(-100%);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInAbt {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+.ImgWrap {
+    display: flex;
+    padding-top: 120px;
+    padding-bottom: 150px;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+    max-width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+}
+.ImgWrap .rightWrap img {
+    max-width: 850px;
+}
+
+.abtWrap {
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+    padding-bottom: 30px;
+    border-bottom: 2px solid #e7e7e7;
+    margin-bottom: 30px;
+    cursor: pointer;
+}
+
+.rigtWrp p {
+    margin-bottom: 0px;
+    opacity: 0;
+    transition-duration: 1s;
+}
+
+.abtWrap .leftWrp {
+    min-width: 250px;
+}
+.abtWrap .leftWrp h6 {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+.abtWrap .leftWrp img {
+    min-width: 210px;
+    filter: grayscale(100%);
+}
+.abtWrap:hover .leftWrp img {
+    filter: grayscale(0%);
+}
+.abtWrap:hover .rigtWrp p {
+    opacity: 1;
+    animation: 1s ease-out 0s 1 slideInAbt;
+}
+
+.container-snap::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.container-snap {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}

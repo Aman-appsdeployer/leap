@@ -1,0 +1,74 @@
+.submitButton {
+    width: 9em;
+    height: 3em;
+    border-radius: 30em;
+    font-size: 15px;
+    font-family: inherit;
+    border: none;
+    font-weight: 700;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    color: rgb(56, 55, 55);
+    box-shadow: 6px 6px 12px #c5c5c5,
+                -6px -6px 12px #ffffff;
+   }
+   
+   .submitButton::before {
+    content: '';
+    width: 0;
+    height: 3em;
+    border-radius: 30em;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-image: linear-gradient(to right, #F5DEB3 0%, #f7ce83 100%);
+    transition: .5s ease;
+    display: block;
+    z-index: -1;
+   }
+   
+   .submitButton:hover::before {
+    width: 9em;
+   }
+
+   /* From Uiverse.io by tranquoclong */ 
+.inputGroup {
+    /* font-family: 'Segoe UI', sans-serif;
+    margin: 1em 0 1em 0; */
+    /* max-width: 190px; */
+    position: relative;
+  }
+  
+  .inputGroup input {
+    font-size: 100%;
+    padding: 0.6rem 0.8rem 0.6rem 0.8rem;
+    outline: none;
+    border: 2px solid rgb(200, 200, 200);
+    background-color: transparent;
+    border-radius: 20px;
+    width: 100%;
+  }
+  
+  .inputGroup label {
+    font-size: 100%;
+    position: absolute;
+    left: 0;
+    padding: 0.8em;
+    margin-left: 0.5em;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    color: rgb(100, 100, 100);
+  }
+  
+  .inputGroup :is(input:focus, input:valid)~label {
+    transform: translateY(-50%) scale(.9);
+    margin: 0em;
+    margin-left: 1.3em;
+    padding: 0.4em;
+    background-color: #fff;
+  }
+  
+  /* .inputGroup :is(input:focus, input:valid) {
+    border-color: rgb(150, 150, 200);
+  } */
