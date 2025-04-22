@@ -96,28 +96,7 @@ export function Footer() {
           >
             Home
           </a>
-          {/* <a
-            href="/#advisory"
-            className={`${
-              isActive("/#advisory")
-                ? "text-red-600 font-bold"
-                : "text-white hover:text-red-600"
-            }`}
-            onClick={(e) => handleScrollToSection(e, "#advisory")}
-          >
-            Services
-          </a> */}
-          {/* <a
-            href="/#nuqiprive"
-            className={`${
-              isActive("/#nuqiprive")
-                ? "text-red-600 font-bold"
-                : "text-white hover:text-red-600"
-            }`}
-            onClick={(e) => handleScrollToSection(e, "#nuqiprive")}
-          >
-            Pages
-          </a> */}
+          
           <a
             href="/Services"
             className={`${
@@ -129,18 +108,6 @@ export function Footer() {
           >
               Services
           </a>
-          
-          {/* <a
-            href="/Privacy"
-            className={`${
-              isActive("/Privacy")
-                ? "text-red-600 font-bold"
-                : "text-white hover:text-red-600"
-            }`}
-            onClick={() => setActiveTab("/Privacy")}
-          >
-            Pages
-          </a> */}
           <a
             href="/About"
             className={`${
@@ -152,17 +119,7 @@ export function Footer() {
           >
             About
           </a>
-          {/* <a
-            href="/partnership"
-            className={`${
-              isActive("/partnership")
-                ? "text-cyan-400 font-bold"
-                : "text-white hover:text-cyan-400"
-            }`}
-            onClick={() => setActiveTab("/partnership")}
-          >
-            
-          </a> */}
+          
           <a
             href="/blog"
             className={`${
@@ -174,17 +131,7 @@ export function Footer() {
           >
             Blog
           </a>
-          {/* <a
-            href="/ContactsPage"
-            className={`${
-              isActive("/ContactsPage")
-                ? "text-red-600 font-bold"
-                : "text-white hover:text-red-600"
-            }`}
-            onClick={() => setActiveTab("/ContactsPage")}
-          >
-            Contact Us
-          </a> */}
+          
         </div>
 
         {/* Disclaimer Section */}

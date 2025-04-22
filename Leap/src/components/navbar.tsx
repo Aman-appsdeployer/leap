@@ -1,12 +1,10 @@
+
 import { Popover, Transition } from "@headlessui/react";
 import { Menu, X } from "lucide-react";
 import { Fragment, ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useActiveTab } from "./ActiveTabContext"; // Import the shared context
-import {
-  Select,
-  SelectContent
-} from "./ui/select"; // Assuming you have a custom Select component
+
 
 // NavItem Component
 function NavItem({
@@ -109,9 +107,9 @@ function DesktopNavigation() {
           </div>
         </li>
         <NavItem
-          href="/cookies"
-          isActive={activeTab === "/cookies"}
-          onClick={(e) => handleScrollToSection(e, "/cookies")}>
+          href="/artefacts"
+          isActive={activeTab === "/artefacts"}
+          onClick={(e) => handleScrollToSection(e, "/artefacts")}>
           ARTEFACTS
         </NavItem>
 
@@ -143,8 +141,6 @@ function DesktopNavigation() {
             </ul>
           </div>
         </li>
-
-
         <NavItem
           href="/story"
           isActive={activeTab === "/story"}
@@ -216,21 +212,28 @@ function MobileNavigation() {
                     Home
                   </NavItem>
                   <NavItem
-                    href="/#advisory"
+                    href="/"
                     isActive={false}
-                    onClick={(e) => handleScrollToSection(e, "#advisory")}>
+                    onClick={(e) => handleScrollToSection(e, "/")}>
                     ACTIVITIES
                   </NavItem>
                   <NavItem
-                    href="/cookies"
+                    href="/artefacts"
                     isActive={false}
-                    onClick={(e) => handleScrollToSection(e, "/cookies")}>
-                    ARTEFACTS
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/artefacts");
+                      setActiveTab("/artefacts");
+                    }}
+                  >
+                    Artefacts
                   </NavItem>
+
                   <NavItem href="/iris" isActive={false} onClick={() => setActiveTab("/iris")}>
                     RESOURCES
 
                   </NavItem>
+                  
                   <NavItem
                     href="/story"
                     isActive={false}
@@ -239,47 +242,10 @@ function MobileNavigation() {
                   </NavItem>
                 </ul>
               </nav>
-
-              {/* Mobile Sign Up & Login Links */}
-              <div className="mt-6">
-                <a href="#" target="_blank" rel="noopener noreferrer">
-                  <button className="w-full px-4 py-2 text-sm font-semibold text-black bg-red-600 rounded-xl whitespace-nowrap hover:text-black">
-                    Sign Up
-                  </button>
-                </a>
-
-                <a href="login" target="_blank" rel="noopener noreferrer">
-                  <button className="w-full mt-3 px-4 py-2 text-sm font-semibold text-white bg-transparent border border-red-600 rounded-xl hover:bg-red-600 hover:text-black">
-                    Login
-                  </button>
-                </a>
-              </div>
             </Popover.Panel>
           </Transition.Child>
         </Transition.Root>
       </Popover>
-    </div>
-  );
-}
-
-function CountrySelect() {
-  return (
-    <div className="flex items-center justify-center">
-      <Select
-        onValueChange={(value) => {
-          if (value === "india") {
-            window.location.href = "#";
-          } else {
-            window.location.href = "#";
-          }
-        }}
-      >
-        
-        <SelectContent className="bg-black text-white border border-red-600 rounded-xl">
-          
-
-        </SelectContent>
-      </Select>
     </div>
   );
 }
@@ -324,75 +290,9 @@ export function Navbar() {
 
         {/* Right Section */}
         <div className="flex items-center space-x-3 lg:space-x-4 lg:mr-5">
-          {/* User Icon with Dropdown for Mobile */}
-          <div className="lg:hidden relative">
-            <Popover>
-              <Popover.Button>
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-black border border-red-600 text-white cursor-pointer">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="white"
-                    viewBox="0 0 24 24"
-                    stroke="none"
-                  >
-                    <path d="M12 12c2.28 0 4-1.72 4-4s-1.72-4-4-4-4 1.72-4 4 1.72 4 4 4zm0 2c-3.31 0-10 1.67-10 5v1h20v-1c0-3.33-6.69-5-10-5z" />
-                  </svg>
-                </div>
-              </Popover.Button>
-
-              <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Popover.Panel className="absolute z-10 justify-center items-center -mr-6  w-24 h-16 sm:-mt-3 bg-black border border-cyan-400 rounded-2xl shadow-lg top-full right-0">
-                  <div className="flex flex-col py-2">
-                    <a href="" target="_blank" rel="noopener noreferrer">
-                      <button className="flex items-center px-4 py-1 text-sm text-white hover:bg-red-600 hover:text-black">
-                        <span className="ml-2">Login</span>
-                      </button>
-                    </a>
-                    <a href="#" target="_blank" rel="noopener noreferrer">
-                      <button className="flex items-center px-4 py-1 text-sm text-white hover:bg-red-600 hover:text-black">
-                        <span className="ml-2">Sign Up</span>
-                      </button>
-                    </a>
-                  </div>
-                </Popover.Panel>
-              </Transition>
-            </Popover>
-          </div>
-
-          {/* Mobile Navigation (Hamburger Menu) */}
           <div className="lg:hidden order-3">
             <MobileNavigation />
           </div>
-          <div className="lg:hidden">
-            <CountrySelect />
-          </div>
-
-          {/* Sign Up & Login for Desktop */}
-          {/* <div className="hidden lg:flex space-x-4 order-2">
-            <a href="#" target="_blank" rel="noopener noreferrer">
-              <button className="px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl whitespace-nowrap hover:text-black">
-                Sign Up
-              </button>
-            </a>
-
-            <a href="#" target="_blank" rel="noopener noreferrer">
-              <button className="px-3 py-2 text-sm font-semibold text-white bg-transparent border border-red-600 rounded-xl hover:bg-red-600 hover:text-black">
-                Login
-              </button>
-            </a>
-
-            
-          </div> */}
-          
         </div>
       </div>
     </header>

@@ -1,7 +1,18 @@
+import { 
+  Bell, 
+  Calendar, 
+  CheckCircle, 
+  LogOut, 
+  Menu, 
+  Moon, 
+  Plus, 
+  Sun, 
+  Users 
+} from "lucide-react"; // <-- Added LogOut here
 import axios from "axios";
-import { Bell, Calendar, CheckCircle, Menu, Moon, Plus, Sun, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+// Reusable UI Components
 const Button = ({ className = "", ...props }) => (
   <button className={`px-4 py-2 rounded ${className}`} {...props} />
 );
@@ -18,8 +29,11 @@ const Card = ({ className = "", children }) => (
   <div className={`bg-white dark:bg-gray-800 rounded-xl ${className}`}>{children}</div>
 );
 
-const CardContent = ({ children }) => <div className="p-4">{children}</div>;
+const CardContent = ({ children }) => (
+  <div className="p-4">{children}</div>
+);
 
+// Quiz Management Component
 const QuizManagement = () => {
   const [quizTitle, setQuizTitle] = useState("");
   const [questions, setQuestions] = useState([{ question: "", options: ["", "", "", ""], answer: "" }]);
@@ -67,7 +81,7 @@ const QuizManagement = () => {
     const payload = {
       quiz_title: quizTitle,
       description: "",
-      created_by_mentor_id_fk: 1,
+      created_by_mentor_id_fk: 1, // You can dynamically set this later
       questions: questions.map((q) => ({
         question_text: q.question,
         question_type: "mcq",
@@ -162,10 +176,7 @@ const QuizManagement = () => {
           onChange={(e) => setQuizTitle(e.target.value)}
         />
         {questions.map((q, qIndex) => (
-          <Card
-            key={qIndex}
-            className="mb-4 border border-gray-200 dark:border-gray-700 shadow-sm"
-          >
+          <Card key={qIndex} className="mb-4 border border-gray-200 dark:border-gray-700 shadow-sm">
             <CardContent>
               <Textarea
                 className="w-full"
@@ -230,11 +241,15 @@ const QuizManagement = () => {
               <Button
                 className="bg-yellow-400 text-black"
                 onClick={() => handleEdit(quiz)}
-              >Edit</Button>
+              >
+                Edit
+              </Button>
               <Button
                 className="bg-red-500 text-white"
                 onClick={() => handleDelete(quiz.quiz_id)}
-              >Delete</Button>
+              >
+                Delete
+              </Button>
             </div>
           </div>
         ))}
@@ -243,6 +258,7 @@ const QuizManagement = () => {
   );
 };
 
+// Main Teacher Dashboard Component
 const Teacher = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -251,6 +267,12 @@ const Teacher = () => {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
+
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to logout?")) {
+      window.location.href = "/"; // Redirect to login/home page
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 dark:bg-gray-900 transition-all">
@@ -270,6 +292,12 @@ const Teacher = () => {
             <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer">
               <Bell className="mr-2" /> Notifications
             </li>
+            <li
+              className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"
+              onClick={() => window.location.href = "/teacher/batches"}
+            >
+              <Bell className="mr-2" /> Batches
+            </li>
           </ul>
         </nav>
       </aside>
@@ -284,12 +312,20 @@ const Teacher = () => {
               Welcome, Teacher
             </h1>
           </div>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </header>
 
         <QuizManagement />
@@ -302,12 +338,8 @@ export default Teacher;
 
 
 
-
-// // Enhanced Teacher Dashboard with Required Fields and Dropdown for Correct Answer
 // import axios from "axios";
-// import {
-//   Bell, Calendar, CheckCircle, Menu, Moon, Plus, Sun, Users,
-// } from "lucide-react";
+// import { Bell, Calendar, CheckCircle, Menu, Moon, Plus, Sun, Users } from "lucide-react";
 // import { useEffect, useRef, useState } from "react";
 
 // const Button = ({ className = "", ...props }) => (
@@ -387,7 +419,7 @@ export default Teacher;
 //       })),
 //     };
 
-//     const url = editingQuizId ? `http://localhost:8000/quiz/${editingQuizId}` : "http://localhost:8000/quiz/full-create";
+//     const url = editingQuizId ? `http://localhost:8000/quiz/${editingQuizId}` : "http://localhost:8000/quiz";
 //     const method = editingQuizId ? "PUT" : "POST";
 
 //     try {
@@ -397,7 +429,7 @@ export default Teacher;
 //         body: JSON.stringify(payload),
 //       });
 //       const data = await res.json();
-//       if (data.success) {
+//       if (res.ok && data.message) {
 //         alert(editingQuizId ? "Quiz updated successfully!" : "Quiz created successfully!");
 //         resetForm();
 //         fetchQuizzes();
@@ -411,8 +443,13 @@ export default Teacher;
 //   };
 
 //   const fetchQuizzes = async () => {
-//     const res = await axios.get("http://localhost:8000/quizzes");
-//     setQuizzes(res.data);
+//     try {
+//       const res = await axios.get("http://localhost:8000/quizzes");
+//       setQuizzes(res.data);
+//     } catch (error) {
+//       console.error("Error fetching quizzes:", error);
+//       alert("Failed to load quizzes.");
+//     }
 //   };
 
 //   const resetForm = () => {
@@ -423,9 +460,14 @@ export default Teacher;
 
 //   const handleDelete = async (quizId) => {
 //     if (!window.confirm("Delete this quiz?")) return;
-//     await axios.delete(`http://localhost:8000/quiz/${quizId}`);
-//     alert("Deleted");
-//     fetchQuizzes();
+//     try {
+//       await axios.delete(`http://localhost:8000/quiz/${quizId}`);
+//       alert("Deleted");
+//       fetchQuizzes();
+//     } catch (error) {
+//       console.error("Error deleting quiz:", error);
+//       alert("Failed to delete quiz.");
+//     }
 //   };
 
 //   const handleEdit = (quiz) => {
@@ -600,276 +642,3 @@ export default Teacher;
 
 
 
-// // Enhanced Teacher Dashboard with Edit & Delete Quiz Options
-// import axios from "axios";
-// import {
-//   Bell, Calendar, CheckCircle, Menu, Moon, Plus, Sun, Users,
-// } from "lucide-react";
-// import { useEffect, useRef, useState } from "react";
-
-// const Button = ({ className = "", ...props }) => (
-//   <button className={`px-4 py-2 rounded ${className}`} {...props} />
-// );
-
-// const Input = ({ className = "", ...props }) => (
-//   <input type="text" className={`border p-2 rounded ${className}`} {...props} />
-// );
-
-// const Textarea = ({ className = "", ...props }) => (
-//   <textarea className={`border p-2 rounded ${className}`} {...props} />
-// );
-
-// const Card = ({ className = "", children }) => (
-//   <div className={`bg-white dark:bg-gray-800 rounded-xl ${className}`}>{children}</div>
-// );
-
-// const CardContent = ({ children }) => <div className="p-4">{children}</div>;
-
-// const QuizManagement = () => {
-//   const [quizTitle, setQuizTitle] = useState("");
-//   const [questions, setQuestions] = useState([{ question: "", options: ["", "", "", ""], answer: "" }]);
-//   const [quizzes, setQuizzes] = useState([]);
-//   const [editingQuizId, setEditingQuizId] = useState(null);
-
-//   const addQuestion = () => {
-//     setQuestions([...questions, { question: "", options: ["", "", "", ""], answer: "" }]);
-//   };
-
-//   const updateQuestion = (index, value) => {
-//     const newQuestions = [...questions];
-//     newQuestions[index].question = value;
-//     setQuestions(newQuestions);
-//   };
-
-//   const updateOption = (qIndex, oIndex, value) => {
-//     const newQuestions = [...questions];
-//     newQuestions[qIndex].options[oIndex] = value;
-//     setQuestions(newQuestions);
-//   };
-
-//   const updateAnswer = (index, value) => {
-//     const newQuestions = [...questions];
-//     newQuestions[index].answer = value;
-//     setQuestions(newQuestions);
-//   };
-
-//   const handleSubmit = async () => {
-//     const payload = {
-//       quiz_title: quizTitle,
-//       description: "",
-//       created_by_mentor_id_fk: 1,
-//       questions: questions.map((q) => ({
-//         question_text: q.question,
-//         question_type: "mcq",
-//         points: 1,
-//         options: q.options.map((opt) => ({
-//           option_text: opt,
-//           is_correct: opt === q.answer,
-//         })),
-//       })),
-//     };
-
-//     const url = editingQuizId ? `http://localhost:8000/quiz/${editingQuizId}` : "http://localhost:8000/quiz/full-create";
-//     const method = editingQuizId ? "PUT" : "POST";
-
-//     try {
-//       const res = await fetch(url, {
-//         method,
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify(payload),
-//       });
-//       const data = await res.json();
-//       if (data.success) {
-//         alert(editingQuizId ? "Quiz updated successfully!" : "Quiz created successfully!");
-//         resetForm();
-//         fetchQuizzes();
-//       } else {
-//         alert("Failed to save quiz.");
-//       }
-//     } catch (error) {
-//       console.error("Quiz save failed:", error);
-//       alert("Error saving quiz");
-//     }
-//   };
-
-//   const fetchQuizzes = async () => {
-//     const res = await axios.get("http://localhost:8000/quizzes");
-//     setQuizzes(res.data);
-//   };
-
-//   const resetForm = () => {
-//     setQuizTitle("");
-//     setQuestions([{ question: "", options: ["", "", "", ""], answer: "" }]);
-//     setEditingQuizId(null);
-//   };
-
-//   const handleDelete = async (quizId) => {
-//     if (!window.confirm("Delete this quiz?")) return;
-//     await axios.delete(`http://localhost:8000/quiz/${quizId}`);
-//     alert("Deleted");
-//     fetchQuizzes();
-//   };
-
-//   const handleEdit = (quiz) => {
-//     setQuizTitle(quiz.quiz_title);
-//     // Fetch the quiz by ID for full data including questions & options
-//     axios.get(`http://localhost:8000/quiz/${quiz.quiz_id}`).then((res) => {
-//       const { questions } = res.data;
-//       setQuestions(
-//         questions.map((q) => ({
-//           question: q.question_text,
-//           options: q.options.map((o) => o.option_text),
-//           answer: q.options.find((o) => o.is_correct)?.option_text || "",
-//         }))
-//       );
-//       setEditingQuizId(quiz.quiz_id);
-//     });
-//   };
-
-//   useEffect(() => {
-//     fetchQuizzes();
-//   }, []);
-
-//   return (
-//     <div className="mt-10">
-//       <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-//         <h1 className="text-2xl font-bold mb-4 text-center text-blue-600 dark:text-blue-400">
-//           {editingQuizId ? "Edit Quiz" : "Create a New Quiz"}
-//         </h1>
-//         <Input
-//           className="w-full mb-4"
-//           placeholder="Enter Quiz Title"
-//           value={quizTitle}
-//           onChange={(e) => setQuizTitle(e.target.value)}
-//         />
-//         {questions.map((q, qIndex) => (
-//           <Card
-//             key={qIndex}
-//             className="mb-4 border border-gray-200 dark:border-gray-700 shadow-sm"
-//           >
-//             <CardContent>
-//               <Textarea
-//                 className="w-full"
-//                 placeholder="Enter Question"
-//                 value={q.question}
-//                 onChange={(e) => updateQuestion(qIndex, e.target.value)}
-//               />
-//               {q.options.map((opt, oIndex) => (
-//                 <Input
-//                   key={oIndex}
-//                   className="w-full mt-2"
-//                   placeholder={`Option ${oIndex + 1}`}
-//                   value={opt}
-//                   onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-//                 />
-//               ))}
-//               <Input
-//                 className="w-full mt-2"
-//                 placeholder="Enter Correct Answer"
-//                 value={q.answer}
-//                 onChange={(e) => updateAnswer(qIndex, e.target.value)}
-//               />
-//             </CardContent>
-//           </Card>
-//         ))}
-//         <div className="flex justify-between">
-//           <Button
-//             className="bg-blue-500 text-white flex items-center gap-2"
-//             onClick={addQuestion}
-//           >
-//             <Plus size={16} /> Add Question
-//           </Button>
-//           <Button
-//             className="bg-green-500 text-white flex items-center gap-2"
-//             onClick={handleSubmit}
-//           >
-//             <CheckCircle size={16} /> {editingQuizId ? "Update Quiz" : "Create Quiz"}
-//           </Button>
-//         </div>
-//       </div>
-
-//       {/* Quiz List */}
-//       <div className="mt-10 max-w-3xl mx-auto">
-//         <h2 className="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Your Quizzes</h2>
-//         {quizzes.map((quiz) => (
-//           <div
-//             key={quiz.quiz_id}
-//             className="mb-4 p-4 bg-white dark:bg-gray-700 shadow rounded flex justify-between items-center"
-//           >
-//             <div>
-//               <h3 className="font-semibold text-lg text-gray-800 dark:text-white">{quiz.quiz_title}</h3>
-//               <p className="text-sm text-gray-500 dark:text-gray-300">{quiz.description}</p>
-//             </div>
-//             <div className="flex gap-2">
-//               <Button
-//                 className="bg-yellow-400 text-black"
-//                 onClick={() => handleEdit(quiz)}
-//               >Edit</Button>
-//               <Button
-//                 className="bg-red-500 text-white"
-//                 onClick={() => handleDelete(quiz.quiz_id)}
-//               >Delete</Button>
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// };
-
-// const Teacher = () => {
-//   const [menuOpen, setMenuOpen] = useState(false);
-//   const [darkMode, setDarkMode] = useState(false);
-//   const sidebarRef = useRef(null);
-
-//   useEffect(() => {
-//     document.documentElement.classList.toggle("dark", darkMode);
-//   }, [darkMode]);
-
-//   return (
-//     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 dark:bg-gray-900 transition-all">
-//       <aside
-//         ref={sidebarRef}
-//         className={`bg-white dark:bg-gray-800 z-30 fixed md:static top-0 left-0 w-64 p-4 shadow-md rounded-lg transition-all ${menuOpen ? "block" : "hidden"} md:block`}
-//       >
-//         <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Teacher Dashboard</h2>
-//         <nav>
-//           <ul>
-//             <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer">
-//               <Users className="mr-2" /> Students
-//             </li>
-//             <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer">
-//               <Calendar className="mr-2" /> Schedule
-//             </li>
-//             <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer">
-//               <Bell className="mr-2" /> Notifications
-//             </li>
-//           </ul>
-//         </nav>
-//       </aside>
-
-//       <div className="flex-1 p-4 md:p-6 ml-0 md:ml-0">
-//         <header className="flex justify-between items-center mb-6">
-//           <div className="flex items-center gap-4">
-//             <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}>
-//               <Menu />
-//             </button>
-//             <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
-//               Welcome, Teacher
-//             </h1>
-//           </div>
-//           <button
-//             onClick={() => setDarkMode(!darkMode)}
-//             className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
-//           >
-//             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-//           </button>
-//         </header>
-
-//         <QuizManagement />
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Teacher;
