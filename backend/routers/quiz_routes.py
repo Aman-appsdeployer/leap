@@ -3,8 +3,8 @@ from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
-from database import get_db
-
+from db.database import get_db   # <<–– same source
+from routers.models import Quiz 
 router = APIRouter()
 
 # === Pydantic Models ===

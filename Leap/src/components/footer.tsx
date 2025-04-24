@@ -82,7 +82,6 @@ export function Footer() {
             </a>
           </div>
         </div>
-
         {/* Navigation Links */}
         <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:flex lg:justify-center gap-10 text-base font-poppins text-center">
           <a
@@ -96,7 +95,6 @@ export function Footer() {
           >
             Home
           </a>
-          
           <a
             href="/Services"
             className={`${
@@ -119,7 +117,6 @@ export function Footer() {
           >
             About
           </a>
-          
           <a
             href="/blog"
             className={`${
@@ -131,13 +128,10 @@ export function Footer() {
           >
             Blog
           </a>
-          
         </div>
-
         {/* Disclaimer Section */}
-        <div className="mt-10 text-center text-xs text-gray-400 leading-relaxed">
+        <div className="mt-10 text-center text-xs text-white leading-relaxed">
           <p>
-            
             <span>
               Please visit our{" "}
               <a
