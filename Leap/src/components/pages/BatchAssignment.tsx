@@ -319,13 +319,13 @@ const BatchAssignment: React.FC = () => {
                     onClick={() => handleEdit(batch)}
                     className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded"
                   >
-                    ✏️ Edit
+                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(batch.batch_id)}
                     className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
                   >
-                    🗑️ Delete
+                     Delete
                   </button>
                 </div>
               </div>
