@@ -134,6 +134,7 @@ app.include_router(student_routes.router)
 
 
 
+
 # from fastapi import FastAPI, HTTPException, Depends
 # from fastapi.middleware.cors import CORSMiddleware
 # from sqlalchemy import create_engine, text
