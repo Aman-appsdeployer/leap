@@ -1,14 +1,12 @@
+// src/components/BatchAssignment.tsx
 import axios from "axios";
 import React, { useCallback, useEffect, useState } from "react";
 import AsyncSelect from "react-select/async";
 
-interface Option {
-  label: string;
-  value: number;
-}
+interface Option { label: string; value: number; }
 
 interface Student {
-  id: number;
+  student_id: number;
   name: string;
 }
 
@@ -20,6 +18,7 @@ interface Batch {
   section_id: number;
   session_id: number;
   created_by: number;
+  student_ids: number[];
 }
 
 const BatchAssignment: React.FC = () => {
@@ -36,103 +35,65 @@ const BatchAssignment: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+
   const [batches, setBatches] = useState<Batch[]>([]);
   const [editingBatchId, setEditingBatchId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ───────── INITIAL LOAD ─────────
   useEffect(() => {
     fetchDropdownData();
     fetchBatches();
   }, []);
 
   useEffect(() => {
-    if (selectedSchool && selectedClass && selectedSection) {
-      fetchStudents(selectedSchool.value, selectedClass.value, selectedSection.value);
+    if (selectedClass && selectedSection) {
+      fetchStudents(selectedClass.value, selectedSection.value);
     } else {
       setStudents([]);
+      setSelectedStudents([]);
+      setSelectAll(false);
     }
-  }, [selectedSchool, selectedClass, selectedSection]);
+  }, [selectedClass, selectedSection]);
 
-  const fetchDropdownData = async () => {
-    try {
-      const [classesRes, sectionsRes, sessionsRes] = await Promise.all([
-        axios.get("http://localhost:8000/api/batches/classes"),
-        axios.get("http://localhost:8000/api/batches/sections"),
-        axios.get("http://localhost:8000/api/batches/sessions"),
-      ]);
+  async function fetchDropdownData() {
+    const [cls, sec, ses] = await Promise.all([
+      axios.get("/api/batches/classes"),
+      axios.get("/api/batches/sections"),
+      axios.get("/api/batches/sessions"),
+    ]);
+    setClassOptions(cls.data.map((c: any) => ({ value: c.class_id, label: c.label })));
+    setSectionOptions(sec.data.map((s: any) => ({ value: s.section_id, label: s.label })));
+    setSessionOptions(ses.data.map((s: any) => ({ value: s.session_id, label: s.session_name })));
+  }
 
-      setClassOptions(classesRes.data.map((c: any) => ({
-        label: `${c.class_name} (ID: ${c.class_id})`,
-        value: c.class_id,
-      })));
-
-      setSectionOptions(sectionsRes.data.map((s: any) => ({
-        label: `${s.section_name} (ID: ${s.section_id})`,
-        value: s.section_id,
-      })));
-
-      setSessionOptions(sessionsRes.data.map((s: any) => ({
-        label: s.session_name,
-        value: s.session_id,
-      })));
-    } catch (err) {
-      console.error("Error fetching dropdown data", err);
-    }
-  };
-
-  const loadSchools = useCallback(async (inputValue: string) => {
-    try {
-      const res = await axios.get("http://localhost:8000/api/schools", {
-        params: { search: inputValue },
-      });
-      return res.data.map((school: any) => ({
-        label: school.school_name,
-        value: school.school_id,
-      }));
-    } catch (err) {
-      console.error("Error loading schools", err);
-      return [];
-    }
+  const loadSchools = useCallback(async (input: string) => {
+    const res = await axios.get("/api/schools", { params: { search: input } });
+    return res.data.map((s: any) => ({ label: s.school_name, value: s.school_id }));
   }, []);
 
-  const fetchStudents = async (school_id: number, class_id: number, section_id: number) => {
-    try {
-      const res = await axios.get("http://localhost:8000/api/students", {
-        params: {
-          school_id,
-          class_id,
-          section_id,
-          exclude_assigned: true,
-        },
-      });
-      setStudents(res.data);
-    } catch (err) {
-      console.error("Error fetching students", err);
-    }
-  };
+  async function fetchStudents(class_id: number, section_id: number) {
+    const res = await axios.get("/api/batches/students/filter", {
+      params: { class_id, section_id, exclude_assigned: true },
+    });
+    setStudents(res.data);
+  }
 
-  const fetchBatches = async () => {
-    try {
-      const res = await axios.get("http://localhost:8000/api/batches");
-      setBatches(res.data);
-    } catch (err) {
-      console.error("Error fetching batches", err);
-    }
-  };
+  async function fetchBatches() {
+    const res = await axios.get<Batch[]>("/api/batches");
+    setBatches(res.data);
+  }
 
-  const toggleStudent = (id: number) => {
-    setSelectedStudents((prev) =>
-      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedStudents([]);
-    } else {
-      setSelectedStudents(students.map((s) => s.id));
-    }
+  const handleSelectAll = () => {
+    if (selectAll) setSelectedStudents([]);
+    else setSelectedStudents(students.map((s) => s.student_id));
     setSelectAll(!selectAll);
+  };
+
+  const handleSelectStudent = (sid: number) => {
+    setSelectedStudents((prev) =>
+      prev.includes(sid) ? prev.filter((x) => x !== sid) : [...prev, sid]
+    );
   };
 
   const resetForm = () => {
@@ -157,219 +118,216 @@ const BatchAssignment: React.FC = () => {
       !selectedSession ||
       selectedStudents.length === 0
     ) {
-      alert("Please fill all fields and select students.");
+      alert("Please fill all fields and select at least one student.");
       return;
     }
 
     const payload = {
       batch_name: batchName,
       school_id_fk: selectedSchool.value,
+      created_by: 1,
       class_id: selectedClass.value,
       section_id: selectedSection.value,
       session_id: selectedSession.value,
-      created_by: 1,
       student_ids: selectedStudents,
     };
 
     setIsSubmitting(true);
     try {
       if (editingBatchId) {
-        await axios.put(`http://localhost:8000/api/batches/${editingBatchId}`, payload);
-        alert("✅ Batch updated successfully!");
+        await axios.put(`/api/batches/${editingBatchId}`, payload);
+        alert("Batch updated!");
       } else {
-        await axios.post(`http://localhost:8000/api/batches`, payload);
-        alert("✅ Batch created successfully!");
+        await axios.post("/api/batches", payload);
+        alert("Batch created!");
       }
       fetchBatches();
       resetForm();
-    } catch (error) {
-      console.error("Error submitting batch:", error);
-      alert("❌ Failed to create/update batch.");
+    } catch {
+      alert("Failed to save batch.");
       setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (batch: Batch) => {
-    setEditingBatchId(batch.batch_id);
-    setBatchName(batch.batch_name);
-    setSelectedSchool({ label: `School ID ${batch.school_id_fk}`, value: batch.school_id_fk });
-    setSelectedClass(classOptions.find(c => c.value === batch.class_id) || null);
-    setSelectedSection(sectionOptions.find(s => s.value === batch.section_id) || null);
-    setSelectedSession(sessionOptions.find(s => s.value === batch.session_id) || null);
-    setSelectedStudents([]); // Optional: populate if you fetch student_ids for editing
+  const handleEdit = (b: Batch) => {
+    setEditingBatchId(b.batch_id);
+    setBatchName(b.batch_name);
+    setSelectedSchool({ value: b.school_id_fk, label: `School ${b.school_id_fk}` });
+    setSelectedClass({ value: b.class_id, label: `Class ${b.class_id}` });
+    setSelectedSection({ value: b.section_id, label: `Section ${b.section_id}` });
+    setSelectedSession({ value: b.session_id, label: `Session ${b.session_id}` });
+    fetchStudents(b.class_id, b.section_id).then(() => {
+      setSelectedStudents(b.student_ids);
+      setSelectAll(false);
+    });
   };
 
-  const handleDelete = async (batch_id: number) => {
-    if (confirm("Are you sure you want to delete this batch?")) {
-      try {
-        await axios.delete(`http://localhost:8000/api/batches/${batch_id}`);
-        fetchBatches();
-        alert("✅ Batch deleted.");
-      } catch (err) {
-        console.error("Error deleting batch", err);
-        alert("❌ Failed to delete batch.");
-      }
-    }
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this batch?")) return;
+    await axios.delete(`/api/batches/${id}`);
+    fetchBatches();
   };
 
   return (
-    <div className="p-8 min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
-      <h1 className="text-2xl font-bold mb-6 text-center">{editingBatchId ? "Edit Batch" : "Create A New Batch"}</h1>
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <h1 className="text-2xl font-bold mb-4">
+        {editingBatchId ? "Edit Batch" : "Create Batch"}
+      </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block mb-2 text-sm font-medium">Batch Name</label>
+          <label>Batch Name</label>
           <input
-            type="text"
+            className="w-full p-2 border"
             value={batchName}
             onChange={(e) => setBatchName(e.target.value)}
-            className="w-full p-2 border rounded bg-white dark:bg-gray-800"
-            placeholder="Enter batch name"
             disabled={isSubmitting}
           />
         </div>
-
         <div>
-          <label className="block mb-2 text-sm font-medium">Select School</label>
+          <label>School</label>
           <AsyncSelect
-            cacheOptions
             loadOptions={loadSchools}
-            defaultOptions
             onChange={setSelectedSchool}
             value={selectedSchool}
-            placeholder="Search school..."
             isDisabled={isSubmitting}
-            className="text-black dark:text-white"
           />
         </div>
-
         <div>
-          <label className="block mb-2 text-sm font-medium">Class</label>
+          <label>Class</label>
           <select
-            className="w-full p-2 border rounded bg-white dark:bg-gray-800"
-            value={selectedClass?.value ?? ""}
-            onChange={(e) => {
-              const cls = classOptions.find((c) => c.value === +e.target.value);
-              setSelectedClass(cls || null);
-            }}
+            className="w-full p-2 border"
+            value={selectedClass?.value || ""}
+            onChange={(e) =>
+              setSelectedClass(
+                classOptions.find((o) => o.value === +e.target.value) || null
+              )
+            }
             disabled={isSubmitting}
           >
-            <option value="">Select class</option>
-            {classOptions.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+            <option value="">— Select —</option>
+            {classOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
-
         <div>
-          <label className="block mb-2 text-sm font-medium">Section</label>
+          <label>Section</label>
           <select
-            className="w-full p-2 border rounded bg-white dark:bg-gray-800"
-            value={selectedSection?.value ?? ""}
-            onChange={(e) => {
-              const sec = sectionOptions.find((s) => s.value === +e.target.value);
-              setSelectedSection(sec || null);
-            }}
+            className="w-full p-2 border"
+            value={selectedSection?.value || ""}
+            onChange={(e) =>
+              setSelectedSection(
+                sectionOptions.find((o) => o.value === +e.target.value) || null
+              )
+            }
             disabled={isSubmitting}
           >
-            <option value="">Select section</option>
-            {sectionOptions.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
+            <option value="">— Select —</option>
+            {sectionOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
-
         <div>
-          <label className="block mb-2 text-sm font-medium">Academic Session</label>
+          <label>Session</label>
           <select
-            className="w-full p-2 border rounded bg-white dark:bg-gray-800"
-            value={selectedSession?.value ?? ""}
-            onChange={(e) => {
-              const sess = sessionOptions.find((s) => s.value === +e.target.value);
-              setSelectedSession(sess || null);
-            }}
+            className="w-full p-2 border"
+            value={selectedSession?.value || ""}
+            onChange={(e) =>
+              setSelectedSession(
+                sessionOptions.find((o) => o.value === +e.target.value) || null
+              )
+            }
             disabled={isSubmitting}
           >
-            <option value="">Select session</option>
-            {sessionOptions.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
+            <option value="">— Select —</option>
+            {sessionOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Students List */}
-      <div className="mb-6">
-        <label className="block mb-2 text-sm font-medium">Select Students</label>
-        {students.length > 0 && (
-          <div className="flex items-center mb-2">
-            <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} className="mr-2" />
-            <span>Select All</span>
-          </div>
-        )}
-        <div className="max-h-64 overflow-y-auto border rounded p-4 dark:border-gray-700">
-          {students.length === 0 ? (
-            <p className="text-sm text-gray-500">No students available.</p>
-          ) : (
-            students.map((student) => (
-              <div key={student.id} className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  checked={selectedStudents.includes(student.id)}
-                  onChange={() => toggleStudent(student.id)}
-                  className="mr-2"
-                />
-                <span>{student.name}</span>
-              </div>
-            ))
-          )}
-        </div>
+      <h2 className="text-xl font-semibold mb-2">Students</h2>
+      <button
+        onClick={handleSelectAll}
+        className="mb-4 px-3 py-1 bg-blue-600 text-white rounded"
+      >
+        {selectAll ? "Deselect All" : "Select All"}
+      </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+        {students.map((s) => (
+          <label key={s.student_id} className="p-2 border flex items-center">
+            <input
+              type="checkbox"
+              className="mr-2"
+              checked={selectedStudents.includes(s.student_id)}
+              onChange={() => handleSelectStudent(s.student_id)}
+              disabled={isSubmitting}
+            />
+            {s.name}
+          </label>
+        ))}
       </div>
 
       <button
         onClick={handleSubmit}
         disabled={isSubmitting}
-        className={`w-full py-3 font-semibold rounded ${isSubmitting ? "bg-gray-400" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+        className="px-4 py-2 bg-green-600 text-white rounded"
       >
-        {isSubmitting ? "Processing..." : editingBatchId ? "Update Batch" : "Create Batch"}
+        {editingBatchId ? "Update" : "Create"} Batch
       </button>
 
-      <div className="mt-12">
-        <h2 className="text-xl font-bold mb-4">Your Batches</h2>
-        <div className="space-y-4">
-          {batches.length === 0 ? (
-            <p>No batches created yet.</p>
-          ) : (
-            batches.map((batch) => (
-              <div key={batch.batch_id} className="p-4 bg-white dark:bg-gray-800 border rounded">
-                <p className="font-semibold">{batch.batch_name}</p>
-                <p className="text-sm text-gray-500">
-                  Class ID: {batch.class_id}, Section ID: {batch.section_id}, Session ID: {batch.session_id}
-                </p>
-                <div className="mt-2 space-x-2">
-                  <button
-                    onClick={() => handleEdit(batch)}
-                    className="px-4 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(batch.batch_id)}
-                    className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <hr className="my-6" />
+
+      <h2 className="text-xl font-semibold mb-2">Existing Batches</h2>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="border p-2">Name</th>
+            <th className="border p-2">Class</th>
+            <th className="border p-2">Section</th>
+            <th className="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {batches.map((b) => (
+            <tr key={b.batch_id}>
+              <td className="border p-2">{b.batch_name}</td>
+              <td className="border p-2">{b.class_id}</td>
+              <td className="border p-2">{b.section_id}</td>
+              <td className="border p-2 space-x-2">
+                <button onClick={() => handleEdit(b)} className="text-blue-600">
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(b.batch_id)}
+                  className="text-red-600"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
 
 export default BatchAssignment;
+
+
+
+
+
 
 
 

@@ -85,8 +85,25 @@ class StudentDetails(Base):
     email_verify_status = Column(Enum("Y", "N"))
     active_status = Column(Enum("A", "I", "D"))
 
+class Batch(Base):
+    __tablename__ = "Batch"
+    batch_id     = Column(Integer, primary_key=True, autoincrement=True)
+    batch_name   = Column(String(255), nullable=False)
+    school_id_fk = Column(Integer, nullable=False)
+    created_by   = Column(Integer, nullable=False)
+    class_id     = Column(Integer, nullable=False)
+    section_id   = Column(Integer, nullable=False)
+    # student_id  = Column(Integer)   # not used once we have BatchStudent
+    session_id   = Column(Integer, nullable=False)
+
+    students = relationship("BatchStudent", back_populates="batch", cascade="all,delete")
+
 class BatchStudent(Base):
-    __tablename__ = "batch_student"
-    id = Column(Integer, primary_key=True)
-    student_id = Column(Integer, ForeignKey("student_details.student_details_id_pk"))
-    batch_id = Column(Integer)
+    __tablename__ = "BatchStudent"
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    batch_id   = Column(Integer, ForeignKey("Batch.batch_id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(Integer, nullable=False)
+
+    batch = relationship("Batch", back_populates="students")
+
+
