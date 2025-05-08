@@ -172,15 +172,74 @@ def filter_students(
 
 
 # ─── UPDATE ───────────────────────────────────────
+# @router.put("/{batch_id}", response_model=BatchOut)
+# def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_db)):
+#     try:
+#         # 1) ensure batch exists
+#         exists = db.execute(text("SELECT 1 FROM Batch WHERE batch_id = :id"), {"id": batch_id}).fetchone()
+#         if not exists:
+#             raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
+
+#         # 2) Validate student_ids belong to the given school/class/section
+#         if updated.student_ids:
+#             placeholders = ",".join([str(sid) for sid in updated.student_ids])
+#             query = text(f"""
+#                 SELECT student_details_id_pk FROM student_details
+#                 WHERE student_details_id_pk IN ({placeholders})
+#                 AND school_id_fk = :school_id
+#                 AND class_id_fk = :class_id
+#                 AND section_id_fk = :section_id
+#             """)
+#             result = db.execute(query, {
+#                 "school_id": updated.school_id_fk,
+#                 "class_id": updated.class_id,
+#                 "section_id": updated.section_id
+#             }).fetchall()
+#             valid_ids = {row[0] for row in result}
+#             if len(valid_ids) != len(updated.student_ids):
+#                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "One or more students are invalid or not in the selected class/section/school.")
+
+#         # 3) update Batch
+#         db.execute(text("""
+#             UPDATE Batch SET
+#               batch_name    = :batch_name,
+#               school_id_fk  = :school_id_fk,
+#               created_by    = :created_by,
+#               class_id      = :class_id,
+#               section_id    = :section_id,
+#               session_id    = :session_id
+#             WHERE batch_id = :batch_id
+#         """), {"batch_id": batch_id, **updated.dict(exclude={"student_ids"})})
+
+#         # 4) replace BatchStudent rows
+#         db.execute(text("DELETE FROM BatchStudent WHERE batch_id = :batch_id"), {"batch_id": batch_id})
+#         for sid in updated.student_ids:
+#             db.execute(text("INSERT INTO BatchStudent (batch_id, student_id) VALUES (:batch_id, :student_id)"),
+#                        {"batch_id": batch_id, "student_id": sid})
+
+#         db.commit()
+#         return BatchOut(batch_id=batch_id, **updated.dict())
+
+#     except HTTPException:
+#         db.rollback()
+#         raise
+#     except Exception:
+#         db.rollback()
+#         logging.exception("Failed to update batch")
+#         raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+    
+    
+    
 @router.put("/{batch_id}", response_model=BatchOut)
 def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_db)):
     try:
-        # 1) ensure batch exists
+        # 1) Ensure the batch exists
         exists = db.execute(text("SELECT 1 FROM Batch WHERE batch_id = :id"), {"id": batch_id}).fetchone()
         if not exists:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
 
-        # 2) Validate student_ids belong to the given school/class/section
+        # 2) Validate new student_ids against school/class/section
         if updated.student_ids:
             placeholders = ",".join([str(sid) for sid in updated.student_ids])
             query = text(f"""
@@ -197,9 +256,9 @@ def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_
             }).fetchall()
             valid_ids = {row[0] for row in result}
             if len(valid_ids) != len(updated.student_ids):
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, "One or more students are invalid or not in the selected class/section/school.")
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "One or more students are not valid or not in the selected class/section/school.")
 
-        # 3) update Batch
+        # 3) Update the batch info
         db.execute(text("""
             UPDATE Batch SET
               batch_name    = :batch_name,
@@ -211,13 +270,16 @@ def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_
             WHERE batch_id = :batch_id
         """), {"batch_id": batch_id, **updated.dict(exclude={"student_ids"})})
 
-        # 4) replace BatchStudent rows
+        # 4) Delete existing students and insert only selected ones
         db.execute(text("DELETE FROM BatchStudent WHERE batch_id = :batch_id"), {"batch_id": batch_id})
         for sid in updated.student_ids:
-            db.execute(text("INSERT INTO BatchStudent (batch_id, student_id) VALUES (:batch_id, :student_id)"),
-                       {"batch_id": batch_id, "student_id": sid})
+            db.execute(text("""
+                INSERT INTO BatchStudent (batch_id, student_id)
+                VALUES (:batch_id, :student_id)
+            """), {"batch_id": batch_id, "student_id": sid})
 
         db.commit()
+
         return BatchOut(batch_id=batch_id, **updated.dict())
 
     except HTTPException:
@@ -227,6 +289,7 @@ def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_
         db.rollback()
         logging.exception("Failed to update batch")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 
 

@@ -49,7 +49,12 @@ const BatchAssignment: React.FC = () => {
 
   useEffect(() => {
     if (selectedClass && selectedSection && selectedSchool) {
-      fetchStudents(selectedClass.value, selectedSection.value, selectedSchool.value);
+      fetchStudents(
+        selectedClass.value,
+        selectedSection.value,
+        selectedSchool.value,
+        editingBatchId === null
+      );
     } else {
       setStudents([]);
       setSelectedStudents([]);
@@ -57,7 +62,7 @@ const BatchAssignment: React.FC = () => {
     }
   }, [selectedClass, selectedSection, selectedSchool]);
 
-  async function fetchDropdownData() {
+  const fetchDropdownData = async () => {
     const [cls, sec, ses] = await Promise.all([
       axios.get("/api/batches/classes"),
       axios.get("/api/batches/sections"),
@@ -66,24 +71,29 @@ const BatchAssignment: React.FC = () => {
     setClassOptions(cls.data.map((c: any) => ({ value: c.class_id, label: c.label })));
     setSectionOptions(sec.data.map((s: any) => ({ value: s.section_id, label: s.label })));
     setSessionOptions(ses.data.map((s: any) => ({ value: s.session_id, label: s.session_name })));
-  }
+  };
 
   const loadSchools = useCallback(async (input: string) => {
     const res = await axios.get("/api/schools", { params: { search: input } });
     return res.data.map((s: any) => ({ label: s.school_name, value: s.school_id }));
   }, []);
 
-  async function fetchStudents(class_id: number, section_id: number, school_id: number) {
+  const fetchStudents = async (
+    class_id: number,
+    section_id: number,
+    school_id: number,
+    excludeAssigned: boolean
+  ) => {
     const res = await axios.get("/api/batches/students/filter", {
-      params: { class_id, section_id, school_id, exclude_assigned: true },
+      params: { class_id, section_id, school_id, exclude_assigned: excludeAssigned },
     });
     setStudents(res.data);
-  }
+  };
 
-  async function fetchBatches() {
+  const fetchBatches = async () => {
     const res = await axios.get<Batch[]>("/api/batches");
     setBatches(res.data);
-  }
+  };
 
   const handleSelectAll = () => {
     if (selectAll) {
@@ -153,7 +163,7 @@ const BatchAssignment: React.FC = () => {
     }
   };
 
-  const handleEdit = (b: Batch) => {
+  const handleEdit = async (b: Batch) => {
     setEditingBatchId(b.batch_id);
     setBatchName(b.batch_name);
     setSelectedSchool({ value: b.school_id_fk, label: `School ${b.school_id_fk}` });
@@ -161,10 +171,12 @@ const BatchAssignment: React.FC = () => {
     setSelectedSection({ value: b.section_id, label: `Section ${b.section_id}` });
     setSelectedSession({ value: b.session_id, label: `Session ${b.session_id}` });
 
-    fetchStudents(b.class_id, b.section_id, b.school_id_fk).then(() => {
-      setSelectedStudents(b.student_ids);
-      setSelectAll(false);
-    });
+    await fetchStudents(b.class_id, b.section_id, b.school_id_fk, false);
+    const assignedRes = await axios.get<{ student_ids: number[] }>(
+      `/api/batches/${b.batch_id}/students`
+    );
+    setSelectedStudents(assignedRes.data.student_ids);
+    setSelectAll(false);
   };
 
   const handleDelete = async (id: number) => {
@@ -180,84 +192,62 @@ const BatchAssignment: React.FC = () => {
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label>Batch Name</label>
-          <input
-            className="w-full p-2 border"
-            value={batchName}
-            onChange={(e) => setBatchName(e.target.value)}
-            disabled={isSubmitting}
-          />
-        </div>
-        <div>
-          <label>School</label>
-          <AsyncSelect
-            loadOptions={loadSchools}
-            onChange={setSelectedSchool}
-            value={selectedSchool}
-            isDisabled={isSubmitting}
-          />
-        </div>
-        <div>
-          <label>Class</label>
-          <select
-            className="w-full p-2 border"
-            value={selectedClass?.value || ""}
-            onChange={(e) =>
-              setSelectedClass(
-                classOptions.find((o) => o.value === +e.target.value) || null
-              )
-            }
-            disabled={isSubmitting}
-          >
-            <option value="">— Select —</option>
-            {classOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>Section</label>
-          <select
-            className="w-full p-2 border"
-            value={selectedSection?.value || ""}
-            onChange={(e) =>
-              setSelectedSection(
-                sectionOptions.find((o) => o.value === +e.target.value) || null
-              )
-            }
-            disabled={isSubmitting}
-          >
-            <option value="">— Select —</option>
-            {sectionOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>Session</label>
-          <select
-            className="w-full p-2 border"
-            value={selectedSession?.value || ""}
-            onChange={(e) =>
-              setSelectedSession(
-                sessionOptions.find((o) => o.value === +e.target.value) || null
-              )
-            }
-            disabled={isSubmitting}
-          >
-            <option value="">— Select —</option>
-            {sessionOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <input
+          type="text"
+          placeholder="Batch Name"
+          value={batchName}
+          onChange={(e) => setBatchName(e.target.value)}
+          className="p-2 border rounded"
+        />
+        <AsyncSelect
+          cacheOptions
+          loadOptions={loadSchools}
+          onChange={(val) => setSelectedSchool(val)}
+          value={selectedSchool}
+          placeholder="Select School"
+        />
+        <select
+          value={selectedClass?.value || ""}
+          onChange={(e) =>
+            setSelectedClass(classOptions.find((c) => c.value === Number(e.target.value)) || null)
+          }
+          className="p-2 border rounded"
+        >
+          <option value="">Select Class</option>
+          {classOptions.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedSection?.value || ""}
+          onChange={(e) =>
+            setSelectedSection(sectionOptions.find((s) => s.value === Number(e.target.value)) || null)
+          }
+          className="p-2 border rounded"
+        >
+          <option value="">Select Section</option>
+          {sectionOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedSession?.value || ""}
+          onChange={(e) =>
+            setSelectedSession(sessionOptions.find((s) => s.value === Number(e.target.value)) || null)
+          }
+          className="p-2 border rounded"
+        >
+          <option value="">Select Session</option>
+          {sessionOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <h2 className="text-xl font-semibold mb-2">Students</h2>
@@ -267,14 +257,13 @@ const BatchAssignment: React.FC = () => {
       >
         {selectAll ? "Deselect All" : "Select All"}
       </button>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
         {students.map((s) => (
           <div
             key={s.student_id}
             className={`p-3 border rounded cursor-pointer ${
-              selectedStudents.includes(s.student_id)
-                ? "bg-green-200"
-                : "bg-white"
+              selectedStudents.includes(s.student_id) ? "bg-red-500" : "bg-white"
             }`}
             onClick={() => handleSelectStudent(s.student_id)}
           >
@@ -300,7 +289,7 @@ const BatchAssignment: React.FC = () => {
           >
             <div>
               <p className="font-semibold">{b.batch_name}</p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-red-600">
                 Class {b.class_id} - Section {b.section_id} - Session {b.session_id}
               </p>
             </div>
