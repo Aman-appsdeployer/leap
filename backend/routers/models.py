@@ -107,3 +107,12 @@ class BatchStudent(Base):
     batch = relationship("Batch", back_populates="students")
 
 
+class StudentProject(Base):
+    __tablename__ = "student_project"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    student_id = Column(Integer, nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(255), nullable=False)
+    upload_time = Column(DateTime, default=datetime.utcnow)
+

@@ -1,9 +1,10 @@
+
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
-from db.database import get_db   # <<–– same source
+from db.database import get_db   
 from routers.models import Quiz 
 router = APIRouter()
 
@@ -222,18 +223,4 @@ def delete_quiz(quiz_id: int, db=Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"❌ Failed to delete quiz: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
