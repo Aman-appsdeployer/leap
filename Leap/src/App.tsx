@@ -2,7 +2,9 @@
 import { Route, Routes } from "react-router-dom";
 import AboutPage from "./components/pages/about";
 import Artefacts from "./components/pages/artefacts";
+import BatchAssign from "./components/pages/BatchAssign";
 import BatchAssignment from "./components/pages/BatchAssignment";
+
 import Blog from "./components/pages/blog";
 import Disclaimer from "./components/pages/disclaimer";
 import Home from "./components/pages/home";
@@ -39,6 +41,7 @@ const App = () => {
                     <Route path="teacher" element={<Teacher />} />
                     <Route path="/quiz/:quiz_id" element={<QuizView />} />
                     <Route path="teacher/batches" element={<BatchAssignment />} />
+                    <Route path="/teacher/batch-assignments" element={<BatchAssign />} />
 
                     
 
