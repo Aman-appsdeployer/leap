@@ -245,16 +245,32 @@ def delete_batch(batch_id: int, db: Session = Depends(get_db)):
 
 
 # ─── LOOKUPS ───────────────────────────────────────
+# @router.get("/classes", response_model=List[dict])
+# def get_classes(db: Session = Depends(get_db)):
+#     rows = db.execute(text("SELECT DISTINCT class_id_fk AS class_id FROM student_details")).fetchall()
+#     return [{"class_id": r.class_id, "label": f"Class {r.class_id}"} for r in rows]
+
+
+# @router.get("/sections", response_model=List[dict])
+# def get_sections(db: Session = Depends(get_db)):
+#     rows = db.execute(text("SELECT DISTINCT section_id_fk AS section_id FROM student_details")).fetchall()
+#     return [{"section_id": r.section_id, "label": f"Section {r.section_id}"} for r in rows]
+
+
 @router.get("/classes", response_model=List[dict])
 def get_classes(db: Session = Depends(get_db)):
-    rows = db.execute(text("SELECT DISTINCT class_id_fk AS class_id FROM student_details")).fetchall()
-    return [{"class_id": r.class_id, "label": f"Class {r.class_id}"} for r in rows]
-
+    rows = db.execute(text("""
+        SELECT class_id_pk, class AS class_name FROM class_details WHERE active_status = 'A'
+    """)).fetchall()
+    return [{"class_id": r.class_id_pk, "label": r.class_name} for r in rows]
 
 @router.get("/sections", response_model=List[dict])
 def get_sections(db: Session = Depends(get_db)):
-    rows = db.execute(text("SELECT DISTINCT section_id_fk AS section_id FROM student_details")).fetchall()
-    return [{"section_id": r.section_id, "label": f"Section {r.section_id}"} for r in rows]
+    rows = db.execute(text("""
+        SELECT section_id_pk, section FROM sections WHERE active_status = 'A'
+    """)).fetchall()
+    return [{"section_id": r.section_id_pk, "label": r.section} for r in rows]
+
 
 @router.get("/sessions", response_model=List[dict])
 def get_sessions(db: Session = Depends(get_db)):

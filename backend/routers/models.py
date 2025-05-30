@@ -158,9 +158,6 @@ class SessionModel(Base):
     
     
     
-
-
-
 # ─── ASSIGNMENT TABLE ─────────────────────────────
 class BatchAssignment(Base):
     __tablename__ = "BatchAssignment"
