@@ -230,7 +230,7 @@ useEffect(() => {
 
         {/* Available Quizzes */}
         <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">📝 Available Quizzes</h2>
+          <h2 className="text-2xl font-bold mb-4"></h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {quizzes.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-300">No quizzes available right now.</p>
