@@ -25,7 +25,7 @@ interface Quiz {
   quiz_id: number;
   quiz_title: string;
   description: string;
-  attempt_count: number;
+  attempt_count: number; // how many attempts already taken
 }
 
 // Dashboard items to display
@@ -36,7 +36,6 @@ interface DashboardItem {
   note: string;
 }
 
-// Static dashboard items, add more as needed
 const dashboardItems: DashboardItem[] = [
   {
     icon: <Upload size={32} className="text-green-500" />,
@@ -70,12 +69,20 @@ const dashboardItems: DashboardItem[] = [
   },
 ];
 
-// Get the appropriate color based on attempt number
-const getColorClass = (attemptNumber) => {
-  if (attemptNumber === 1) return "bg-green-100 border-green-500"; // Green for first attempt
-  if (attemptNumber === 2) return "bg-blue-100 border-blue-500";  // Blue for second attempt
-  if (attemptNumber === 3) return "bg-purple-100 border-purple-500"; // Purple for third attempt
-  return "bg-white border-gray-300"; // Default if no attempts
+/** 
+ * Return the Tailwind classes for each “next attempt”:
+ *  nextAttempt=1 → green, 
+ *  =2 → blue, 
+ *  =3 → purple, 
+ *  >3 → default (grey)
+ */
+const getColorClass = (attemptCount: number) => {
+  const nextAttempt = attemptCount + 1; // color is based on the *upcoming* attempt
+  if (nextAttempt === 1) return "bg-green-100 border-green-500";   // first attempt
+  if (nextAttempt === 2) return "bg-blue-100 border-blue-500";    // second attempt
+  if (nextAttempt === 3) return "bg-purple-100 border-purple-500"; // third attempt
+  // If they’ve already done 3 (or more), we show a neutral/grey
+  return "bg-gray-100 border-gray-300";
 };
 
 const Dashboard = () => {
@@ -90,6 +97,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStudentAndQuizzes = async () => {
       try {
+        // 1) Load student info from localStorage or API
         const studentData = localStorage.getItem("student");
         let studentId: number | null = null;
 
@@ -99,14 +107,14 @@ const Dashboard = () => {
           studentId = parsed.student_details_id_pk || parsed.student_id || null;
         } else {
           const res = await axios.get("http://localhost:8000/student", {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           setStudentName(res.data.name || "Student");
           studentId = res.data.student_details_id_pk || res.data.student_id || null;
+          localStorage.setItem("student", JSON.stringify(res.data));
         }
 
+        // 2) If we have a student ID, fetch assigned quizzes
         if (studentId) {
           const quizRes = await axios.get(
             `http://localhost:8000/api/quizzes/assigned-quizzes/${studentId}`
@@ -139,7 +147,11 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  // Load and navigate to quiz with necessary checks
+  /** 
+   * Load the quiz only if < 3 attempts have been taken. 
+   * If they are about to start attempt #3 (i.e. attempt_count === 2), show a confirm dialog.
+   * Once confirmed, POST /attempt → get back { attempt_number }, then navigate to /quiz.
+   */
   const loadAndGoToQuiz = async (quizId: number, attemptCount: number) => {
     if (attemptCount >= 3) {
       alert("❌ You have reached the maximum of 3 attempts for this quiz.");
@@ -147,31 +159,22 @@ const Dashboard = () => {
     }
 
     try {
-      const studentData = localStorage.getItem("student");
-      const parsedStudent = studentData ? JSON.parse(studentData) : null;
-      let studentId = parsedStudent?.student_id || parsedStudent?.student_details_id_pk;
-
-      if (!studentId) {
-        const res = await axios.get("http://localhost:8000/student", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        localStorage.setItem("student", JSON.stringify(res.data));
-        studentId = res.data.student_id || res.data.student_details_id_pk;
-      }
-
-      if (!studentId) {
-        alert("❌ Student ID not found. Please re-login.");
-        return;
-      }
-
+      // 1) Confirm if this is the 3rd (i.e. attemptCount===2 means nextAttempt=3)
       if (attemptCount === 2) {
         const confirmAttempt = window.confirm(
-          "⚠️ This will be your 3rd and final attempt. Are you sure you want to continue?"
+          "⚠️ This will be your 3rd and final attempt. Are you sure?"
         );
         if (!confirmAttempt) return;
       }
+
+      // 2) Call the backend to record one more attempt
+      const studentDataRaw = localStorage.getItem("student");
+      if (!studentDataRaw) {
+        alert("❌ Student ID not found. Please re-login.");
+        return;
+      }
+      const parsedStudent = JSON.parse(studentDataRaw);
+      const studentId = parsedStudent.student_details_id_pk || parsedStudent.student_id;
 
       const attemptRes = await axios.post("http://localhost:8000/api/quizzes/attempt", {
         quiz_id: quizId,
@@ -179,6 +182,9 @@ const Dashboard = () => {
         student_id: studentId,
       });
 
+      // (Optionally, you can show attemptRes.data.message in an alert/toast)
+
+      // 3) Finally, fetch the quiz questions & navigate
       const quizRes = await axios.get(`http://localhost:8000/api/quizzes/quiz/${quizId}`);
 
       navigate(`/quiz/${quizId}`, {
@@ -212,16 +218,12 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold dark:text-white">Student Dashboard</h2>
         )}
         <ul className="mt-6 space-y-4">
-          {[{ label: "Dashboard", Icon: BarChart2 }, { label: "Students", Icon: Users }, { label: "Courses", Icon: BookOpen }, { label: "Analytics", Icon: PieChart }].map(
-            ({ label, Icon }) => (
-              <li
-                key={label}
-                className="flex items-center text-gray-700 dark:text-gray-300 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400"
-              >
+          {[{ label: "Dashboard", Icon: BarChart2 }, { label: "Students", Icon: Users }, { label: "Courses", Icon: BookOpen }, { label: "Analytics", Icon: PieChart }]
+            .map(({ label, Icon }) => (
+              <li key={label} className="flex items-center text-gray-700 dark:text-gray-300 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400">
                 <Icon className="w-5 h-5 mr-2" /> {sidebarOpen && label}
               </li>
-            )
-          )}
+            ))}
         </ul>
       </motion.aside>
 
@@ -237,10 +239,7 @@ const Dashboard = () => {
           <div className="flex items-center space-x-4">
             <Bell size={24} className="cursor-pointer text-gray-700 dark:text-gray-300" />
             <div className="relative">
-              <button
-                onClick={toggleProfileMenu}
-                className="p-2 bg-gray-300 dark:bg-gray-700 rounded-full"
-              >
+              <button onClick={toggleProfileMenu} className="p-2 bg-gray-300 dark:bg-gray-700 rounded-full">
                 <User size={20} />
               </button>
               {profileMenuOpen && (
@@ -296,32 +295,29 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold mb-4">Available Quizzes</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {quizzes.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-300">
-                No quizzes available right now.
-              </p>
+              <p className="text-gray-500 dark:text-gray-300">No quizzes available right now.</p>
             ) : (
               quizzes.map((quiz) => (
                 <div
                   key={quiz.quiz_id}
-                  className={`p-6 rounded-lg shadow-md border ${getColorClass(
-                    quiz.attempt_count
-                  )} dark:border-gray-700`}
+                  className={`p-6 rounded-lg shadow-md border ${getColorClass(quiz.attempt_count)} dark:border-gray-700`}
                 >
-                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-1">
-                    {quiz.quiz_title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300 mb-1">
-                    {quiz.description}
-                  </p>
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-1">{quiz.quiz_title}</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-1">{quiz.description}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     Attempts Taken: {quiz.attempt_count}
                   </p>
                   <button
                     type="button"
                     onClick={() => loadAndGoToQuiz(quiz.quiz_id, quiz.attempt_count)}
-                    className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white"
+                    disabled={quiz.attempt_count >= 3}
+                    className={`px-4 py-2 rounded-lg text-white ${
+                      quiz.attempt_count >= 3
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-500 hover:bg-blue-600"
+                    }`}
                   >
-                    Attempt Quiz
+                    {quiz.attempt_count >= 3 ? "Maxed Out" : "Attempt Quiz"}
                   </button>
                 </div>
               ))
@@ -334,6 +330,8 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
 
 
 

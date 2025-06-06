@@ -1,4 +1,4 @@
-import Dashboard from "../dashboard"; // Adjust the path if necessary
+import Dashboard from "../dashboard"; 
 
 const Student = () => {
   return (

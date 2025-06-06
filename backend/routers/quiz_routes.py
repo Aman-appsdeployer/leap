@@ -294,6 +294,10 @@ def get_assigned_quizzes_for_student(student_id: int, db=Depends(get_db)):
 # New route to record attempt
 @quiz_router.post("/attempt")
 def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
+    """
+    Records a new Attempt row for a given student + quiz.
+    attempt_number auto‐increments up to 3. 4th attempt → 403 forbidden.
+    """
     try:
         student_id = payload.get("student_id")
         quiz_id = payload.get("quiz_id")
@@ -302,10 +306,12 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
         if not student_id or not quiz_id or attempt_type not in ("pre", "post"):
             raise HTTPException(status_code=400, detail="Invalid input")
 
-        # Fetch the assignment to ensure the student is assigned the quiz
-        assignment = db.execute(text("""
-            SELECT batch_assignment_id FROM Batch_Assignment
-            WHERE student_id_fk = :student_id AND quiz_id_fk = :quiz_id
+        # 1) Fetch the assignment to ensure the student really has this quiz assigned
+        assignment = db.execute(text(""" 
+            SELECT batch_assignment_id 
+              FROM Batch_Assignment
+             WHERE student_id_fk = :student_id 
+               AND quiz_id_fk = :quiz_id
         """), {"student_id": student_id, "quiz_id": quiz_id}).fetchone()
 
         if not assignment:
@@ -313,46 +319,81 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
 
         assignment_id = assignment._mapping["batch_assignment_id"]
 
-        # Check the current attempt count for this student and quiz
-        attempt_check = db.execute(text("""
-            SELECT COUNT(*) AS count FROM Attempt
-            WHERE student_id_fk = :student_id AND batch_assignment_id = :assignment_id
-        """), {"student_id": student_id, "assignment_id": assignment_id}).fetchone()
+        # 2) Check if the student has already attempted the quiz (pre/post)
+        attempt_check = db.execute(text(""" 
+            SELECT COUNT(*) AS attempt_count 
+              FROM Attempt
+             WHERE student_id_fk = :student_id 
+               AND batch_assignment_id = :assignment_id
+               AND attempt_type = :attempt_type
+        """), {"student_id": student_id, "assignment_id": assignment_id, "attempt_type": attempt_type}).fetchone()
 
-        current_attempts = attempt_check._mapping["count"] if attempt_check else 0
+        current_attempt_count = attempt_check._mapping["attempt_count"] if attempt_check else 0
+        next_attempt_number = current_attempt_count + 1
 
-        # If the student has reached 3 attempts, block further attempts
-        if current_attempts >= 3:
-            raise HTTPException(status_code=403, detail="❌ Maximum attempts reached.")
+        # 3) If they've already done 3 attempts, block any further ones
+        if next_attempt_number > 3:
+            raise HTTPException(status_code=403, detail="❌ Maximum 3 attempts reached.")
 
-        # Only insert data when the student submits the quiz, not when attempting it
-        # Logic to track the attempt number (1 for first, 2 for second, etc.)
-        attempt_number = current_attempts + 1
-
-        # If this is the 3rd attempt, show alert and confirm submission
-        if attempt_number == 3:
-            # Display confirmation to the student that it's the last attempt
-            return {"message": "⚠️ This is your last attempt. Are you sure you want to submit?"}
-
-        # Insert the attempt data in the database only when the student submits the quiz
-        db.execute(text("""
-            INSERT INTO Attempt (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number)
-            VALUES (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number)
-        """), {
-            "assignment_id": assignment_id,
-            "student_id": student_id,
-            "attempt_type": attempt_type,
-            "attempt_number": attempt_number
-        })
+        # 4) If no attempt exists, insert a new one, otherwise update
+        if current_attempt_count == 0:  # If no attempt exists, insert a new one
+            db.execute(text("""
+                INSERT INTO Attempt 
+                    (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number)
+                VALUES 
+                    (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number)
+            """), {
+                "assignment_id": assignment_id,
+                "student_id": student_id,
+                "attempt_type": attempt_type,
+                "attempt_number": next_attempt_number
+            })
+        else:  # If attempt already exists, prevent duplicate insertions
+            raise HTTPException(status_code=400, detail="Attempt already recorded for this quiz.")
 
         db.commit()
 
-        return {"message": f"Attempt #{attempt_number} recorded for the quiz."}
+        return {
+            "attempt_number": next_attempt_number,
+            "message": f"✅ Attempt #{next_attempt_number} recorded."
+        }
 
     except Exception as e:
         db.rollback()
-        print(f"❌ ERROR: {e}")  # Log the error for debugging
+        print(f"❌ ERROR in /attempt: {e}")
         raise HTTPException(status_code=500, detail=f"Error recording attempt: {str(e)}")
+
+
+
+    
+@quiz_router.get("/attempt/count")
+def get_attempt_count(quiz_id: int, student_id: int, db=Depends(get_db)):
+    """
+    Returns the number of attempts a student has made for a specific quiz.
+    """
+    try:
+        result = db.execute(text("""
+            SELECT COUNT(*) AS attempt_count 
+            FROM Attempt
+            WHERE student_id_fk = :student_id 
+              AND batch_assignment_id IN (
+                  SELECT batch_assignment_id 
+                  FROM Batch_Assignment 
+                  WHERE student_id_fk = :student_id 
+                  AND quiz_id_fk = :quiz_id
+              )
+        """), {"student_id": student_id, "quiz_id": quiz_id}).fetchone()
+
+        # Handle case if no result is returned
+        attempt_count = result._mapping["attempt_count"] if result else 0
+        
+        return {"attempt_count": attempt_count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching attempt count: {str(e)}")
+
+
+
+
 
 
 
