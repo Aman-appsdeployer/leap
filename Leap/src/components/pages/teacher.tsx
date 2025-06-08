@@ -3,30 +3,32 @@ import {
   Bell,
   Calendar,
   CheckCircle,
+  Edit2,
+  LogOut,
   Menu,
   Moon,
   Plus,
   Sun,
-  User,
-  Users,
+  Trash,
+  Users
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // UI Components
 const Button = ({ className = "", ...props }) => (
-  <button className={`px-4 py-2 rounded ${className}`} {...props} />
+  <button className={`px-4 py-2 rounded-lg ${className}`} {...props} />
 );
 const Input = ({ className = "", ...props }) => (
   <input
     type="text"
-    className={`border p-2 rounded ${className}`}
+    className={`border p-2 rounded-lg ${className}`}
     {...props}
     required
   />
 );
 const Textarea = ({ className = "", ...props }) => (
-  <textarea className={`border p-2 rounded ${className}`} {...props} required />
+  <textarea className={`border p-2 rounded-lg ${className}`} {...props} required />
 );
 const Card = ({ className = "", children }) => (
   <div className={`bg-white dark:bg-gray-800 rounded-xl ${className}`}>
@@ -241,8 +243,12 @@ const QuizManagement = () => {
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">{quiz.quiz_title}</h3>
             </div>
             <div className="flex gap-2">
-              <Button className="bg-yellow-400 text-black" onClick={() => handleEdit(quiz)}>Edit</Button>
-              <Button className="bg-red-500 text-white" onClick={() => handleDelete(quiz.quiz_id)}>Delete</Button>
+              <Button className="bg-yellow-400 text-black p-2 rounded-full" onClick={() => handleEdit(quiz)}>
+                <Edit2 size={18} />
+              </Button>
+              <Button className="bg-red-500 text-white p-2 rounded-full" onClick={() => handleDelete(quiz.quiz_id)}>
+                <Trash size={18} />
+              </Button>
             </div>
           </div>
         ))}
@@ -257,8 +263,17 @@ const QuizManagement = () => {
 const Teacher = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false); // State for logout confirmation modal
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear session or token here
+    setIsLoggedIn(false);
+    alert("You have logged out successfully.");
+    navigate("/login"); // Redirect to login page
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -309,8 +324,15 @@ const Teacher = () => {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <button className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white">
+            {/* <button className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white">
               <User size={20} />
+            </button> */}
+            {/* Logout Icon with Modal */}
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
+            >
+              <LogOut size={20} />
             </button>
             <button
               onClick={() => setDarkMode(!darkMode)}
@@ -323,11 +345,30 @@ const Teacher = () => {
 
         <QuizManagement />
       </div>
+
+      {/* Logout Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Are you sure you want to logout?</h2>
+            <div className="flex justify-end gap-4">
+              <Button className="bg-gray-400 text-white" onClick={() => setShowLogoutModal(false)}>
+                Cancel
+              </Button>
+              <Button className="bg-red-500 text-white" onClick={handleLogout}>
+                Logout
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Teacher;
+
+
 
 
 
