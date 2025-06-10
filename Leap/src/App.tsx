@@ -34,20 +34,22 @@ const App = () => {
                         <Route path="services" element={<Services />} />
                         <Route path="story" element={<Story />} />
                         <Route path="login" element={<Login />} />
-                        <Route path="artefacts" element={< Artefacts/>} />
+                        <Route path="artefacts" element={< Artefacts />} />
+
 
                     </Route>
-                    <Route path="student" element={<Student />} />
-                    <Route path="teacher" element={<Teacher />} />
+
                     <Route path="/quiz/:quiz_id" element={<QuizView />} />
                     <Route path="teacher/batches" element={<BatchAssignment />} />
                     <Route path="/teacher/batch-assignments" element={<BatchAssign />} />
+                    <Route path="student" element={<Student />} />
+                    <Route path="teacher" element={<Teacher />} />
 
-                    
+
 
 
                 </Routes>
-                
+
             </ActiveTabProvider>
         </div>
     );

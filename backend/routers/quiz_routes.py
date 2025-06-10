@@ -38,14 +38,26 @@ class QuizAssignmentRequest(BaseModel):
 @quiz_router.post("/quiz")
 def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
     try:
-        # Insert Quiz
+        # ✅ Force default mentor ID to 3
+        default_mentor_id = 3
+
+        # ✅ Confirm mentor exists
+        mentor_exists = db.execute(
+            text("SELECT teacher_details_id_pk FROM teacher_details WHERE teacher_details_id_pk = :id"),
+            {"id": default_mentor_id}
+        ).fetchone()
+
+        if not mentor_exists:
+            raise HTTPException(status_code=400, detail="❌ Default mentor (ID 3) not found in teacher_details.")
+
+        # ✅ Insert quiz
         db.execute(text("""
             INSERT INTO Quiz (quiz_title, description, created_by_mentor_id_fk, is_open, start_time)
             VALUES (:quiz_title, :description, :created_by, :is_open, :start_time)
         """), {
             "quiz_title": data.quiz_title,
             "description": data.description or "",
-            "created_by": data.created_by_mentor_id_fk,
+            "created_by": default_mentor_id,
             "is_open": data.is_open,
             "start_time": data.start_time or datetime.utcnow()
         })
@@ -55,7 +67,7 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
         if not quiz_id:
             raise HTTPException(status_code=500, detail="❌ Could not retrieve quiz ID after insert.")
 
-        # Insert Questions
+        # ✅ Insert questions and options
         for question in data.questions:
             db.execute(text("""
                 INSERT INTO Question (quiz_id_fk, question_text, question_type, points)
@@ -72,7 +84,6 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
             if not question_id:
                 raise HTTPException(status_code=500, detail="❌ Could not retrieve question ID.")
 
-            # Insert Options
             for option in question.options:
                 db.execute(text("""
                     INSERT INTO QuestionOption (question_id_fk, option_text, is_correct)
@@ -91,6 +102,8 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
         import traceback
         print("❌ QUIZ CREATION ERROR:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"❌ Failed to create quiz: {str(e)}")
+
+
 
 
 @quiz_router.get("/quiz/{quiz_id}")
@@ -291,6 +304,8 @@ def get_assigned_quizzes_for_student(student_id: int, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"❌ Failed to fetch assigned quizzes: {str(e)}")
 
 
+
+
 # New route to record attempt
 @quiz_router.post("/attempt")
 def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
@@ -384,7 +399,7 @@ def get_attempt_count(quiz_id: int, student_id: int, db=Depends(get_db)):
                   FROM Batch_Assignment 
                   WHERE student_id_fk = :student_id 
                   AND quiz_id_fk = :quiz_id
-              )
+              ) AND attempt_type ='post'
         """), {"student_id": student_id, "quiz_id": quiz_id}).fetchone()
 
         # Handle case if no result is returned

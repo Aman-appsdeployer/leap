@@ -55,6 +55,7 @@
     "react-router-dom": "^6.21.3",
     "react-select": "^5.10.1",
     "react-tsparticles": "^2.12.2",
+    "recharts": "^2.15.3",
     "sweetalert2": "^11.22.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7"
