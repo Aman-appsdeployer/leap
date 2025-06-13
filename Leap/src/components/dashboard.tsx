@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
 import { motion } from "framer-motion";
@@ -302,8 +303,8 @@ const Dashboard = () => {
                       onClick={() => loadAndGoToQuiz(quiz.quiz_id, quiz.attempt_count)}
                       disabled={quiz.attempt_count >= 2}
                       className={`px-4 py-2 rounded-lg text-white ${quiz.attempt_count >= 2
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-blue-500 hover:bg-blue-600"
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-500 hover:bg-blue-600"
                         }`}
                     >
                       {quiz.attempt_count >= 2 ? "Maxed Out" : "Attempt Quiz"}
@@ -326,13 +327,20 @@ const Dashboard = () => {
                   <CardContent>
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-1">{quiz.quiz_title}</h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-2">{quiz.description}</p>
-                    <p className="text-sm text-green-700 dark:text-green-400 font-semibold">✅ Already Attempted</p>
+                    <p className="text-sm text-green-700 dark:text-green-400 font-semibold">
+                      ✅ Already Attempted
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-400 font-semibold">
+                      Score: {quiz.score ? quiz.score : "Not Available"} {/* Display score or fallback */}
+                    </p>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
         )}
+
+
       </main>
     </div>
   );

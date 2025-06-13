@@ -192,12 +192,21 @@ class Attempt(Base):
     attempt_id = Column(Integer, primary_key=True, autoincrement=True)
     batch_assignment_id = Column(Integer, ForeignKey("BatchAssignment.id"), nullable=False)
     student_id_fk = Column(Integer, ForeignKey("student_details.student_details_id_pk"), nullable=False)
+    quiz_id_fk = Column(Integer, ForeignKey("Quiz.quiz_id"), nullable=False)  # Add this line
     attempt_date = Column(DateTime, default=datetime.utcnow)
     attempt_type = Column(Enum(AttemptTypeEnum), nullable=False)
     attempt_number = Column(Integer, default=1)
+    score = Column(Integer, default=0)
 
-    # Additional relationship for scores
-    score = Column(Integer, default=0)  # This will store the score for the attempt
+    quiz = relationship("Quiz", back_populates="attempts")  # Add relationship
+
+
+
+
+
+
+
+
 
 
 

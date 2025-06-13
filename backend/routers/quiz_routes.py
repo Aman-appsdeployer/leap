@@ -278,35 +278,33 @@ def delete_quiz(quiz_id: int, db=Depends(get_db)):
 @quiz_router.get("/assigned-quizzes/{student_id}")
 def get_assigned_quizzes_for_student(student_id: int, db=Depends(get_db)):
     try:
+        # Query to get quizzes assigned to a student with their scores and attempt count
         result = db.execute(text("""
-            SELECT 
-                q.quiz_id, 
-                q.quiz_title, 
-                q.description, 
+            SELECT
+                q.quiz_id,
+                q.quiz_title,
+                q.description,
                 q.is_open,
+                a.score,  -- Include score here
                 (
-                    SELECT COUNT(*) 
+                    SELECT COUNT(*)
                     FROM Attempt a
                     JOIN Batch_Assignment ba2 ON a.batch_assignment_id = ba2.batch_assignment_id
-                    WHERE ba2.quiz_id_fk = q.quiz_id 
+                    WHERE ba2.quiz_id_fk = q.quiz_id
                       AND a.student_id_fk = :student_id
                 ) AS attempt_count
             FROM Quiz q
             JOIN Batch_Assignment ba ON q.quiz_id = ba.quiz_id_fk
+            LEFT JOIN Attempt a ON a.batch_assignment_id = ba.batch_assignment_id AND a.student_id_fk = :student_id
             WHERE ba.student_id_fk = :student_id
         """), {"student_id": student_id}).fetchall()
 
         return [dict(row._mapping) for row in result]
 
     except Exception as e:
-        import traceback
-        print("❌ ERROR in assigned-quizzes:", traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"❌ Failed to fetch assigned quizzes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch assigned quizzes: {str(e)}")
 
-
-
-
-# New route to record attempt
+# Insert Attempt (Post Quiz Attempt)
 @quiz_router.post("/attempt")
 def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
     """
@@ -317,8 +315,9 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
     try:
         student_id = payload.get("student_id")
         quiz_id = payload.get("quiz_id")
-        
-        if not student_id or not quiz_id:
+        score = payload.get("score")  # Get score from the frontend
+
+        if not student_id or not quiz_id or score is None:
             raise HTTPException(status_code=400, detail="Invalid input")
 
         # 1) Fetch the assignment to ensure the student really has this quiz assigned
@@ -351,19 +350,20 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
         # 4) Determine the attempt type: 'pre' for first attempt, 'post' for second attempt
         next_attempt_type = "pre" if current_attempt_count == 0 else "post"
 
-        # 5) Insert the new attempt with the next attempt_number
+        # 5) Insert the new attempt with the next attempt_number and score
         next_attempt_number = current_attempt_count + 1
 
         db.execute(text("""
             INSERT INTO Attempt 
-                (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number)
+                (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number, score)
             VALUES 
-                (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number)
+                (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number, :score)
         """), {
             "assignment_id": assignment_id,
             "student_id": student_id,
             "attempt_type": next_attempt_type,
-            "attempt_number": next_attempt_number
+            "attempt_number": next_attempt_number,
+            "score": score  # Store the score here
         })
 
         db.commit()
@@ -371,17 +371,14 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
         return {
             "attempt_number": next_attempt_number,
             "attempt_type": next_attempt_type,
-            "message": f"✅ Attempt #{next_attempt_number} recorded as '{next_attempt_type}'."
+            "score": score,
+            "message": f"✅ Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with a score of {score}."
         }
 
-    except IntegrityError as e:
-        db.rollback()
-        print(f"❌ IntegrityError: {str(e)}")
-        raise HTTPException(status_code=400, detail="❌ Attempt already recorded for this quiz.")
     except Exception as e:
         db.rollback()
-        print(f"❌ ERROR in /attempt: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error recording attempt: {str(e)}")
+
 
    
 @quiz_router.get("/attempt/count")

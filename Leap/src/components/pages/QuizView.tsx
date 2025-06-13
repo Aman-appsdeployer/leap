@@ -1,5 +1,5 @@
 import axios from "axios";
-import clsx from "clsx";
+import clsx from "clsx"; // Make sure clsx is installed
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -67,10 +67,12 @@ const QuizView = () => {
 
       const attemptType = attemptCount === 0 ? "pre" : "post";
 
+      // Send score to the backend
       await axios.post("http://localhost:8000/api/quizzes/attempt", {
         student_id: studentId,
         quiz_id: quiz.quiz_id,
         attempt_type: attemptType,
+        score: totalScore, // Include score in the request
       });
 
       await fetchAttemptCount(quiz.quiz_id);
@@ -80,6 +82,7 @@ const QuizView = () => {
       setIsSubmitting(false);
     }
   };
+
 
   const handleConfirmSubmit = async () => {
     setShowConfirmPopup(false);
@@ -173,7 +176,6 @@ const QuizView = () => {
 
         {score !== null && (
           <div className="mt-6 text-xl font-bold text-green-500">
-            🎉 You scored {score} out of {quiz.questions.length}.
           </div>
         )}
       </div>
@@ -205,6 +207,7 @@ const QuizView = () => {
 };
 
 export default QuizView;
+
 
 
 
