@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from db.database import get_db
+import traceback 
 
 quiz_router = APIRouter(prefix="/api/quizzes", tags=["Quizzes"])
 public_router = APIRouter()
@@ -278,93 +279,122 @@ def delete_quiz(quiz_id: int, db=Depends(get_db)):
 @quiz_router.get("/assigned-quizzes/{student_id}")
 def get_assigned_quizzes_for_student(student_id: int, db=Depends(get_db)):
     try:
-        # Query to get quizzes assigned to a student with their scores and attempt count
-        result = db.execute(text("""
+        quizzes = db.execute(text("""
             SELECT
                 q.quiz_id,
                 q.quiz_title,
                 q.description,
                 q.is_open,
-                a.score,  -- Include score here
-                (
-                    SELECT COUNT(*)
-                    FROM Attempt a
-                    JOIN Batch_Assignment ba2 ON a.batch_assignment_id = ba2.batch_assignment_id
-                    WHERE ba2.quiz_id_fk = q.quiz_id
-                      AND a.student_id_fk = :student_id
-                ) AS attempt_count
+                ba.batch_assignment_id
             FROM Quiz q
             JOIN Batch_Assignment ba ON q.quiz_id = ba.quiz_id_fk
-            LEFT JOIN Attempt a ON a.batch_assignment_id = ba.batch_assignment_id AND a.student_id_fk = :student_id
             WHERE ba.student_id_fk = :student_id
         """), {"student_id": student_id}).fetchall()
 
-        return [dict(row._mapping) for row in result]
+        quiz_list = []
+
+        for row in quizzes:
+            quiz_data = dict(row._mapping)
+            attempts = db.execute(text("""
+                SELECT attempt_type, score
+                FROM Attempt
+                WHERE student_id_fk = :student_id
+                AND batch_assignment_id = :assignment_id
+            """), {
+                "student_id": student_id,
+                "assignment_id": row._mapping["batch_assignment_id"]
+            }).fetchall()
+
+            quiz_data["attempts"] = [dict(a._mapping) for a in attempts]
+            quiz_data["attempt_count"] = len(attempts)
+            quiz_list.append(quiz_data)
+
+        return quiz_list
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch assigned quizzes: {str(e)}")
 
+
 # Insert Attempt (Post Quiz Attempt)
 @quiz_router.post("/attempt")
 def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
-    """
-    Records a new Attempt row for a given student + quiz.
-    The first attempt is "pre", and the second attempt is "post".
-    After the second attempt, no more attempts are allowed.
-    """
     try:
+        # Extract payload data
         student_id = payload.get("student_id")
         quiz_id = payload.get("quiz_id")
-        score = payload.get("score")  # Get score from the frontend
+        score = payload.get("score")
+        attempt_type = payload.get("attempt_type")  # pre or post
 
-        if not student_id or not quiz_id or score is None:
-            raise HTTPException(status_code=400, detail="Invalid input")
+        # Validate input
+        if not student_id or not quiz_id or score is None or not attempt_type:
+            raise HTTPException(status_code=400, detail="Missing required parameters")
 
-        # 1) Fetch the assignment to ensure the student really has this quiz assigned
-        assignment = db.execute(text("""
-            SELECT batch_assignment_id 
-            FROM Batch_Assignment
-            WHERE student_id_fk = :student_id 
-              AND quiz_id_fk = :quiz_id
-        """), {"student_id": student_id, "quiz_id": quiz_id}).fetchone()
+        # Ensure the student exists in the database
+        student_exists = db.execute(
+            text("SELECT 1 FROM student_details WHERE student_details_id_pk = :student_id"),
+            {"student_id": student_id}
+        ).fetchone()
+
+        if not student_exists:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # Ensure the quiz exists in the database
+        quiz_exists = db.execute(
+            text("SELECT 1 FROM Quiz WHERE quiz_id = :quiz_id"),
+            {"quiz_id": quiz_id}
+        ).fetchone()
+
+        if not quiz_exists:
+            raise HTTPException(status_code=404, detail="Quiz not found")
+
+        # Check for the correct batch assignment
+        assignment = db.execute(
+            text("""
+                SELECT batch_assignment_id 
+                FROM Batch_Assignment 
+                WHERE student_id_fk = :student_id 
+                  AND quiz_id_fk = :quiz_id
+            """), {"student_id": student_id, "quiz_id": quiz_id}
+        ).fetchone()
 
         if not assignment:
             raise HTTPException(status_code=403, detail="Quiz not assigned to this student")
 
         assignment_id = assignment._mapping["batch_assignment_id"]
 
-        # 2) Check how many attempts the student has already made for this quiz
-        attempt_check = db.execute(text("""
-            SELECT COUNT(*) AS attempt_count 
-            FROM Attempt
-            WHERE student_id_fk = :student_id 
-              AND batch_assignment_id = :assignment_id
-        """), {"student_id": student_id, "assignment_id": assignment_id}).fetchone()
+        # Check the number of attempts
+        attempt_check = db.execute(
+            text("""
+                SELECT COUNT(*) AS attempt_count
+                FROM Attempt
+                WHERE student_id_fk = :student_id 
+                  AND batch_assignment_id = :assignment_id
+            """), {"student_id": student_id, "assignment_id": assignment_id}
+        ).fetchone()
 
         current_attempt_count = attempt_check._mapping["attempt_count"] if attempt_check else 0
 
-        # 3) If the student has already made 2 attempts, block further attempts
         if current_attempt_count >= 2:
-            raise HTTPException(status_code=403, detail="❌ Maximum 2 attempts reached. No more attempts allowed.")
+            raise HTTPException(status_code=403, detail="Maximum attempts reached")
 
-        # 4) Determine the attempt type: 'pre' for first attempt, 'post' for second attempt
+        # Determine the attempt type: "pre" or "post"
         next_attempt_type = "pre" if current_attempt_count == 0 else "post"
-
-        # 5) Insert the new attempt with the next attempt_number and score
         next_attempt_number = current_attempt_count + 1
 
-        db.execute(text("""
-            INSERT INTO Attempt 
-                (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number, score)
-            VALUES 
-                (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number, :score)
-        """), {
-            "assignment_id": assignment_id,
-            "student_id": student_id,
-            "attempt_type": next_attempt_type,
-            "attempt_number": next_attempt_number,
-            "score": score  # Store the score here
-        })
+        # Insert the new attempt into the database
+        db.execute(
+            text("""
+                INSERT INTO Attempt 
+                    (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number, score)
+                VALUES 
+                    (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number, :score)
+            """), {
+                "assignment_id": assignment_id,
+                "student_id": student_id,
+                "attempt_type": next_attempt_type,
+                "attempt_number": next_attempt_number,
+                "score": score
+            })
 
         db.commit()
 
@@ -372,13 +402,41 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
             "attempt_number": next_attempt_number,
             "attempt_type": next_attempt_type,
             "score": score,
-            "message": f"✅ Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with a score of {score}."
+            "message": f"Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with a score of {score}"
         }
 
     except Exception as e:
         db.rollback()
+        print("Error:", traceback.format_exc())  # Log the full error trace
         raise HTTPException(status_code=500, detail=f"Error recording attempt: {str(e)}")
 
+
+@quiz_router.get("/attempts/{quiz_id}")
+def get_attempts_by_quiz(quiz_id: int, student_id: int, db=Depends(get_db)):
+    """
+    Fetches the attempts made by a student for a specific quiz and returns both `pre` and `post` scores.
+    """
+    try:
+        attempts = db.execute(text("""
+            SELECT attempt_type, score
+            FROM Attempt
+            WHERE student_id_fk = :student_id AND quiz_id = :quiz_id
+        """), {"student_id": student_id, "quiz_id": quiz_id}).fetchall()
+
+        attempts_data = {
+            "pre_score": None,
+            "post_score": None
+        }
+
+        for attempt in attempts:
+            if attempt["attempt_type"] == "pre":
+                attempts_data["pre_score"] = attempt["score"]
+            if attempt["attempt_type"] == "post":
+                attempts_data["post_score"] = attempt["score"]
+
+        return attempts_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch attempts: {str(e)}")
 
    
 @quiz_router.get("/attempt/count")

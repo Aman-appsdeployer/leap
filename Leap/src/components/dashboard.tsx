@@ -1,4 +1,5 @@
 
+
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
 import { motion } from "framer-motion";
@@ -115,17 +116,14 @@ const Dashboard = () => {
 
           const allQuizzes: Quiz[] = Array.isArray(quizRes.data) ? quizRes.data : [];
 
-          //  Available Quizzes → only where is_open = 1
-          const available = allQuizzes.filter((q) => q.is_open === 1);
+          // Remove duplicates based on quiz_id
+          const uniqueQuizzes = allQuizzes.filter(
+            (value, index, self) =>
+              index === self.findIndex((t) => t.quiz_id === value.quiz_id)
+          );
 
-          //  Attempted Quizzes → only where attempt_count >= 1 (regardless of is_open)
-          const attempted = allQuizzes.filter((q) => q.attempt_count >= 1);
-
-          console.log("🧪 DEBUG:", {
-            allQuizzes,
-            available,
-            attempted
-          });
+          const available = uniqueQuizzes.filter((q) => q.is_open === 1);
+          const attempted = uniqueQuizzes.filter((q) => q.attempt_count >= 1);
 
           setAvailableQuizzes(available);
           setAttemptedQuizzes(attempted);
@@ -136,6 +134,7 @@ const Dashboard = () => {
         setAttemptedQuizzes([]);
       }
     };
+
 
     fetchStudentAndQuizzes();
     document.documentElement.classList.toggle("dark", darkMode);
@@ -317,29 +316,48 @@ const Dashboard = () => {
         </div>
 
 
+
         {/* Attempted Quizzes */}
         {attemptedQuizzes.length > 0 && (
           <div className="mt-16">
             <h2 className="text-2xl font-bold mb-4">Attempted Quizzes</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {attemptedQuizzes.map((quiz) => (
-                <Card key={quiz.quiz_id} className="shadow-xl rounded-2xl p-6 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700">
+                <Card
+                  key={quiz.quiz_id}
+                  className="shadow-xl rounded-2xl p-6 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700"
+                >
                   <CardContent>
-                    <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-1">{quiz.quiz_title}</h3>
+                    <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-1">
+                      {quiz.quiz_title}
+                    </h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-2">{quiz.description}</p>
-                    <p className="text-sm text-green-700 dark:text-green-400 font-semibold">
-                      ✅ Already Attempted
-                    </p>
-                    <p className="text-sm text-blue-700 dark:text-blue-400 font-semibold">
-                      Score: {quiz.score ? quiz.score : "Not Available"} {/* Display score or fallback */}
-                    </p>
+
+                    <div className="text-sm text-green-700 dark:text-green-400 font-bold">
+                      <p>Already Attempted</p>
+                      
+                      {quiz.attempt_count > 0 && (
+                        <>
+                          <p>
+                            Pre Score: {
+                              quiz.attempts?.find((a) => a.attempt_type === "pre")?.score ?? "Not Available"
+                            }
+                          </p>
+                          <p>
+                            Post Score: {
+                              quiz.attempts?.find((a) => a.attempt_type === "post")?.score ?? "Not Available"
+                            }
+                          </p>
+                        </>
+                      )}
+
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
         )}
-
 
       </main>
     </div>

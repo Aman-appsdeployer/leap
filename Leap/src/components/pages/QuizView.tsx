@@ -67,13 +67,13 @@ const QuizView = () => {
 
       const attemptType = attemptCount === 0 ? "pre" : "post";
 
-      // Send score to the backend
-      await axios.post("http://localhost:8000/api/quizzes/attempt", {
-        student_id: studentId,
-        quiz_id: quiz.quiz_id,
-        attempt_type: attemptType,
-        score: totalScore, // Include score in the request
-      });
+     await axios.post("http://localhost:8000/api/quizzes/attempt", {
+  student_id: studentId,
+  quiz_id: quiz.quiz_id,
+  attempt_type: attemptType,  // 'pre' or 'post'
+  score: totalScore,  // Include score in the request
+});
+
 
       await fetchAttemptCount(quiz.quiz_id);
     } catch (error) {
