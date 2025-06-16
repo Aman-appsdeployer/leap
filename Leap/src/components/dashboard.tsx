@@ -340,12 +340,12 @@ const Dashboard = () => {
                         <>
                           <p>
                             Pre Score: {
-                              quiz.attempts?.find((a) => a.attempt_type === "pre")?.score ?? "Not Available"
+                              quiz.attempts?.find((a) => a.attempt_type === "pre")?.score ?? "Not Attempted "
                             }
                           </p>
                           <p>
                             Post Score: {
-                              quiz.attempts?.find((a) => a.attempt_type === "post")?.score ?? "Not Available"
+                              quiz.attempts?.find((a) => a.attempt_type === "post")?.score ?? "Not Attempted "
                             }
                           </p>
                         </>
