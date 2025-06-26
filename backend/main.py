@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -11,7 +12,7 @@ from typing import Optional
 
 from db.database import get_db
 from routers.school_routes import router as school_router
-from routers.quiz_routes import quiz_router, public_router
+from routers.quiz_routes import quiz_router, public_router , badge_router, project_router
 from routers.batch_routes import router as batch_router
 from routers import student_routes
 
@@ -109,7 +110,6 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if not is_verified:
         raise HTTPException(status_code=401, detail="Invalid password")
 
-    # Optional password upgrade to bcrypt
     if new_hash:
         db.execute(text("UPDATE user_login SET password = :password WHERE username = :username"), {
             "password": new_hash,
@@ -118,37 +118,36 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         db.commit()
 
     access_token = create_access_token(data={"sub": stored_username})
-
-    # === Return student details if student logs in ===
+    redirect_path = "/student" if expected_type == 1 else "/teacher"
+    
+    # ⬇️ Add this to fetch student details if user is a student
+    student_data = None
     if expected_type == 1:
         student = db.execute(text("""
-            SELECT student_details_id_pk, name, email
+            SELECT student_details_id_pk, school_id_fk, class_id_fk, section_id_fk,name
             FROM student_details
             WHERE email = :email
         """), {"email": stored_username}).fetchone()
 
         if not student:
-            raise HTTPException(status_code=404, detail="Student not found")
+            raise HTTPException(status_code=404, detail="Student record not found")
 
-        return {
-            "success": True,
-            "message": "Login successful",
-            "token": access_token,
-            "redirect": "/student",
-            "student": {
-                "student_details_id_pk": student.student_details_id_pk,
-                "name": student.name,
-                "email": student.email
-            }
+        student_data = {
+            "student_details_id_pk": student.student_details_id_pk,
+            "school_id_fk": student.school_id_fk,
+            "class_id_fk": student.class_id_fk,
+            "section_id_fk": student.section_id_fk,
+            "name": student.name
         }
 
-    # === For teacher logins ===
     return {
         "success": True,
         "message": "Login successful",
         "token": access_token,
-        "redirect": "/teacher"
+        "redirect": redirect_path,
+        "student": student_data
     }
+
 
 @app.get("/student")
 def student_dashboard(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -180,13 +179,8 @@ app.include_router(batch_router)
 app.include_router(student_routes.router)
 app.include_router(quiz_router)
 app.include_router(public_router)
-
-
-
-
-
-
-
+app.include_router(badge_router)
+app.include_router(project_router)  # ✅ already has prefix "/api/projects"
 
 
 
@@ -204,7 +198,8 @@ app.include_router(public_router)
 
 # from db.database import get_db
 # from routers.school_routes import router as school_router
-# from routers.quiz_routes import quiz_router, public_router
+# from routers.quiz_routes import quiz_router, public_router, badge_router, project_router
+
 # from routers.batch_routes import router as batch_router
 # from routers import student_routes
 
@@ -302,6 +297,7 @@ app.include_router(public_router)
 #     if not is_verified:
 #         raise HTTPException(status_code=401, detail="Invalid password")
 
+#     # Optional password upgrade to bcrypt
 #     if new_hash:
 #         db.execute(text("UPDATE user_login SET password = :password WHERE username = :username"), {
 #             "password": new_hash,
@@ -309,26 +305,68 @@ app.include_router(public_router)
 #         })
 #         db.commit()
 
-#     redirect_path = "/student" if expected_type == 1 else "/teacher"
 #     access_token = create_access_token(data={"sub": stored_username})
+
+#     # === Return student details if student logs in ===
+#     if expected_type == 1:
+#         student = db.execute(text("""
+#             SELECT student_details_id_pk, name, email, school_id_fk, class_id_fk, section_id_fk
+#             FROM student_details
+#             WHERE email = :email
+#         """), {"email": stored_username}).fetchone()
+
+#         if not student:
+#             raise HTTPException(status_code=404, detail="Student not found")
+
+#         return {
+#             "success": True,
+#             "message": "Login successful",
+#             "token": access_token,
+#             "redirect": "/student",
+#             "student": {
+#                 "student_details_id_pk": student.student_details_id_pk,
+#                 "name": student.name,
+#                 "email": student.email,
+#                 "school_id_fk": student.school_id_fk,
+#                 "class_id_fk": student.class_id_fk,
+#                 "section_id_fk": student.section_id_fk
+#             }
+#         }
+
+#     # === For teacher logins ===
 #     return {
 #         "success": True,
 #         "message": "Login successful",
 #         "token": access_token,
-#         "redirect": redirect_path
+#         "redirect": "/teacher"
 #     }
 
 # @app.get("/student")
 # def student_dashboard(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
 #     result = db.execute(text("""
-#         SELECT name, student_details_id_pk
+#         SELECT 
+#             student_details_id_pk, 
+#             name, 
+#             email, 
+#             school_id_fk, 
+#             class_id_fk, 
+#             section_id_fk
 #         FROM student_details
 #         WHERE email = :email
 #     """), {"email": current_user}).fetchone()
 
 #     if result:
-#         return {"name": result.name, "student_id": result.student_details_id_pk}
+#         return {
+#             "name": result.name,
+#             "student_id": result.student_details_id_pk,
+#             "email": result.email,
+#             "school_id_fk": result.school_id_fk,
+#             "class_id_fk": result.class_id_fk,
+#             "section_id_fk": result.section_id_fk
+#         }
+
 #     raise HTTPException(status_code=404, detail="Student not found")
+
 
 # @app.get("/teacher")
 # def teacher_dashboard(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -348,6 +386,20 @@ app.include_router(public_router)
 # app.include_router(student_routes.router)
 # app.include_router(quiz_router)
 # app.include_router(public_router)
+# app.include_router(badge_router)
+# app.include_router(project_router)   
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

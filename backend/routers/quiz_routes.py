@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, Body , Header, File, UploadFile, Form
+from sqlalchemy.orm import Session 
+import logging
+import requests
+import os
+
 from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
@@ -8,6 +13,8 @@ import traceback
 
 quiz_router = APIRouter(prefix="/api/quizzes", tags=["Quizzes"])
 public_router = APIRouter()
+badge_router = APIRouter()
+
 
 # === Pydantic Models ===
 class OptionCreate(BaseModel):
@@ -464,4 +471,151 @@ def get_attempt_count(quiz_id: int, student_id: int, db=Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching attempt count: {str(e)}")
 
+
+
+badge_router = APIRouter(prefix="/student/badges", tags=["Badges"])
+
+# Badgr Access Token
+BADGR_ACCESS_TOKEN = "w7sgNQ0v3q1q3ma41Z001e5L46IK0v"
+
+@badge_router.get("/{student_email}")
+def get_student_badges(student_email: str):
+    try:
+        # 1️⃣ Prepare URL
+        url = f"https://api.badgr.io/v2/backpack/assertions?recipient_email={student_email}"
+
+        headers = {
+            "Authorization": f"Bearer {BADGR_ACCESS_TOKEN}",
+            "Accept": "application/json"
+        }
+
+        # 2️⃣ Call Badgr API
+        response = requests.get(url, headers=headers)
+
+        # 3️⃣ Print logs for debugging
+        print("✅ Badgr API status:", response.status_code)
+        print("✅ Badgr API response:", response.text)
+
+        # 4️⃣ Error handling
+        if response.status_code == 401:
+            raise HTTPException(status_code=401, detail="Unauthorized - Badgr token invalid or expired")
+
+        if response.status_code == 403:
+            raise HTTPException(status_code=403, detail="Forbidden - Badgr API access denied")
+
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="No badges found for this email")
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"Error from Badgr API: {response.text}")
+
+        # 5️⃣ Return response as JSON
+        return response.json()
+
+    except Exception as e:
+        print("❌ Exception while fetching badges:", str(e))
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
+
+project_router = APIRouter(prefix="/api/projects", tags=["Projects"])
+
+UPLOAD_DIR = "static/uploads/projects"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@project_router.post("/upload-project")
+async def upload_project(
+    student_id_fk: int = Form(...),
+    school_id_fk: int = Form(...),
+    class_id_fk: int = Form(...),
+    section_id_fk: int = Form(...),
+    topic_id_fk: int = Form(...),
+    other_topic: str = Form(""),
+    project_title: str = Form(...),
+    project_details: str = Form(...),
+    subject_id_fk: int = Form(...),
+    project_language: str = Form(...),
+    file_type_id_fk: int = Form(...),
+    project_month: str = Form(...),
+    project_year: str = Form(...),
+    uploaded_by_user_id: int = Form(...),
+    uploaded_by_user_type: int = Form(...),
+    project_file: UploadFile = File(...),
+    project_thumbnail: UploadFile = File(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        file_location = f"{UPLOAD_DIR}/{timestamp}_{project_file.filename}"
+        with open(file_location, "wb") as f:
+            f.write(await project_file.read())
+
+        thumbnail_path = None
+        if project_thumbnail:
+            thumb_location = f"{UPLOAD_DIR}/{timestamp}_{project_thumbnail.filename}"
+            with open(thumb_location, "wb") as f:
+                f.write(await project_thumbnail.read())
+            thumbnail_path = thumb_location
+
+        db.execute(text("""
+            INSERT INTO projects (
+                student_id_fk, school_id_fk, class_id_fk, section_id_fk, topic_id_fk, other_topic,
+                project_title, project_details, subject_id_fk, project_language, project_file_path,
+                project_thumbnail, file_type_id_fk, project_month, project_year,
+                uploaded_by_user_id, uploaded_by_user_type, upload_date, verify_status,
+                project_rating, project_remarks, active_status
+            ) VALUES (
+                :student_id_fk, :school_id_fk, :class_id_fk, :section_id_fk, :topic_id_fk, :other_topic,
+                :project_title, :project_details, :subject_id_fk, :project_language, :project_file_path,
+                :project_thumbnail, :file_type_id_fk, :project_month, :project_year,
+                :uploaded_by_user_id, :uploaded_by_user_type, CURDATE(), 'P',
+                '', '', 'A'
+            )
+        """), {
+            "student_id_fk": student_id_fk,
+            "school_id_fk": school_id_fk,
+            "class_id_fk": class_id_fk,
+            "section_id_fk": section_id_fk,
+            "topic_id_fk": topic_id_fk,
+            "other_topic": other_topic,
+            "project_title": project_title,
+            "project_details": project_details,
+            "subject_id_fk": subject_id_fk,
+            "project_language": project_language,
+            "project_file_path": file_location,
+            "project_thumbnail": thumbnail_path,
+            "file_type_id_fk": file_type_id_fk,
+            "project_month": project_month,
+            "project_year": project_year,
+            "uploaded_by_user_id": uploaded_by_user_id,
+            "uploaded_by_user_type": uploaded_by_user_type,
+        })
+
+        db.commit()
+        return {"message": "✅ Project uploaded successfully."}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"❌ Error uploading project: {str(e)}")
+
+
+@project_router.get("/languages")
+def get_languages(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT language_id_pk, language FROM project_language WHERE active_status = 'A'"))
+    return [{"id": row.language_id_pk, "label": row.language} for row in result]
+
+
+@project_router.get("/topics")
+def get_topics(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT topic_id_pk, topic FROM topics WHERE active_status = 'A'"))
+    return [{"id": row.topic_id_pk, "label": row.topic} for row in result]
+
+@project_router.get("/file-types")
+def get_file_types(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT file_type_id_pk, file_type FROM file_type WHERE active_status = 'A'"))
+    return [{"id": row.file_type_id_pk, "label": row.file_type} for row in result]
+
+@project_router.get("/subjects")
+def get_subjects(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT subject_id_pk, subject_name FROM subject_details WHERE active_status = 'A'"))
+    return [{"id": row.subject_id_pk, "label": row.subject_name} for row in result]
 

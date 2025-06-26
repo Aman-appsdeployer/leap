@@ -200,6 +200,61 @@ class Attempt(Base):
 
     quiz = relationship("Quiz", back_populates="attempts")  # Add relationship
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    project_id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    student_id_fk = Column(Integer, nullable=False)
+    school_id_fk = Column(Integer, nullable=False)
+    class_id_fk = Column(Integer, nullable=False)
+    section_id_fk = Column(Integer, nullable=False)
+    topic_id_fk = Column(Integer, nullable=False)
+    other_topic = Column(String(255))
+    project_title = Column(Text, nullable=False)
+    project_details = Column(Text, nullable=False)
+    subject_id_fk = Column(Integer, nullable=False)
+    project_language = Column(String(255), nullable=False)
+    project_file_path = Column(Text, nullable=False)
+    project_thumbnail = Column(Text)
+    file_type_id_fk = Column(Integer, nullable=False)
+    project_month = Column(String(25), nullable=False)
+    project_year = Column(String(5), nullable=False)
+    uploaded_by_user_id = Column(Integer, nullable=False)
+    uploaded_by_user_type = Column(Integer, nullable=False)
+    upload_date = Column(Date, default=datetime.utcnow)
+    verify_status = Column(Enum(VerifyStatusEnum), default=VerifyStatusEnum.PENDING)
+    project_rating = Column(String(12), default="")
+    project_remarks = Column(Text, default="")
+    active_status = Column(Enum(ActiveStatusEnum), default=ActiveStatusEnum.ACTIVE)
+
+
+    
+# ─── PROJECT LANGUAGE MODEL ───────────────────────
+
+
+class ProjectLanguage(Base):
+    __tablename__ = "project_language"
+
+    language_id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    language = Column(String(255), nullable=False)
+    active_status = Column(Enum(ActiveStatusEnum), default=ActiveStatusEnum.ACTIVE)
+    
+class Topic(Base):
+    __tablename__ = "topics"
+
+    topic_id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    topic = Column(Text, nullable=False)
+    active_status = Column(Enum(ActiveStatusEnum), default=ActiveStatusEnum.ACTIVE)
+
+class FileType(Base):
+    __tablename__ = "file_type"
+
+    file_type_id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    file_type = Column(String(255), nullable=False)
+    active_status = Column(Enum(ActiveStatusEnum), default=ActiveStatusEnum.ACTIVE)
+
+
+
 
 
 
