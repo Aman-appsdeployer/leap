@@ -243,20 +243,6 @@ def delete_batch(batch_id: int, db: Session = Depends(get_db)):
         logging.exception("Failed to delete batch")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-
-# ─── LOOKUPS ───────────────────────────────────────
-# @router.get("/classes", response_model=List[dict])
-# def get_classes(db: Session = Depends(get_db)):
-#     rows = db.execute(text("SELECT DISTINCT class_id_fk AS class_id FROM student_details")).fetchall()
-#     return [{"class_id": r.class_id, "label": f"Class {r.class_id}"} for r in rows]
-
-
-# @router.get("/sections", response_model=List[dict])
-# def get_sections(db: Session = Depends(get_db)):
-#     rows = db.execute(text("SELECT DISTINCT section_id_fk AS section_id FROM student_details")).fetchall()
-#     return [{"section_id": r.section_id, "label": f"Section {r.section_id}"} for r in rows]
-
-
 @router.get("/classes", response_model=List[dict])
 def get_classes(db: Session = Depends(get_db)):
     rows = db.execute(text("""

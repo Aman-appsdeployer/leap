@@ -254,6 +254,16 @@ class FileType(Base):
     active_status = Column(Enum(ActiveStatusEnum), default=ActiveStatusEnum.ACTIVE)
 
 
+class Post(Base):
+    __tablename__ = "posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    html = Column(Text)
+    css = Column(Text)
+    created_by = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 
 
 
