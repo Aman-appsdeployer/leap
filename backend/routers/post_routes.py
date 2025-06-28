@@ -4,8 +4,9 @@ from typing import List
 from datetime import datetime
 
 from db.database import get_db  # Your DB session dependency
-from models import Post  # SQLAlchemy model
-from schemas import PostCreate  # Pydantic schema
+from routers.models import Post
+from routers.schemas import PostCreate
+ 
 
 router = APIRouter(
     prefix="/api/posts",

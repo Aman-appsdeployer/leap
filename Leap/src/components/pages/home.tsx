@@ -1,6 +1,7 @@
 
 // import Hero from "../ui/hero";
 import CounterStats from "../CounterStats";
+import PostViewer from "../PostViewer";
 import Login from "./login";
 const Home = () => {
   return (
@@ -8,6 +9,7 @@ const Home = () => {
       
      
       <Login/>
+      <PostViewer/>
       <CounterStats />
       
     </div>

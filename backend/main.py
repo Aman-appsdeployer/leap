@@ -15,6 +15,9 @@ from routers.school_routes import router as school_router
 from routers.quiz_routes import quiz_router, public_router , badge_router, project_router
 from routers.batch_routes import router as batch_router
 from routers import student_routes
+from routers.post_routes import router as post_router
+
+
 
 # === FastAPI App ===
 app = FastAPI()
@@ -180,7 +183,20 @@ app.include_router(student_routes.router)
 app.include_router(quiz_router)
 app.include_router(public_router)
 app.include_router(badge_router)
-app.include_router(project_router)  # ✅ already has prefix "/api/projects"
+app.include_router(project_router)
+app.include_router(post_router)   
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
