@@ -322,8 +322,6 @@ def get_assigned_quizzes_for_student(student_id: int, db=Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch assigned quizzes: {str(e)}")
 
-
-# Insert Attempt (Post Quiz Attempt)
 @quiz_router.post("/attempt")
 def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
     try:
@@ -331,31 +329,30 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
         student_id = payload.get("student_id")
         quiz_id = payload.get("quiz_id")
         score = payload.get("score")
-        attempt_type = payload.get("attempt_type")  # pre or post
+        attempt_type = payload.get("attempt_type")  # 'pre' or 'post'
+        responses = payload.get("responses", {})  # {question_id: selected_option_id}
 
         # Validate input
         if not student_id or not quiz_id or score is None or not attempt_type:
             raise HTTPException(status_code=400, detail="Missing required parameters")
 
-        # Ensure the student exists in the database
+        # Ensure student exists
         student_exists = db.execute(
             text("SELECT 1 FROM student_details WHERE student_details_id_pk = :student_id"),
             {"student_id": student_id}
         ).fetchone()
-
         if not student_exists:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Ensure the quiz exists in the database
+        # Ensure quiz exists
         quiz_exists = db.execute(
             text("SELECT 1 FROM Quiz WHERE quiz_id = :quiz_id"),
             {"quiz_id": quiz_id}
         ).fetchone()
-
         if not quiz_exists:
             raise HTTPException(status_code=404, detail="Quiz not found")
 
-        # Check for the correct batch assignment
+        # Ensure quiz is assigned to student
         assignment = db.execute(
             text("""
                 SELECT batch_assignment_id 
@@ -364,13 +361,12 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
                   AND quiz_id_fk = :quiz_id
             """), {"student_id": student_id, "quiz_id": quiz_id}
         ).fetchone()
-
         if not assignment:
             raise HTTPException(status_code=403, detail="Quiz not assigned to this student")
 
         assignment_id = assignment._mapping["batch_assignment_id"]
 
-        # Check the number of attempts
+        # Check number of attempts
         attempt_check = db.execute(
             text("""
                 SELECT COUNT(*) AS attempt_count
@@ -381,15 +377,14 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
         ).fetchone()
 
         current_attempt_count = attempt_check._mapping["attempt_count"] if attempt_check else 0
-
         if current_attempt_count >= 2:
             raise HTTPException(status_code=403, detail="Maximum attempts reached")
 
-        # Determine the attempt type: "pre" or "post"
+        # Determine next attempt type
         next_attempt_type = "pre" if current_attempt_count == 0 else "post"
         next_attempt_number = current_attempt_count + 1
 
-        # Insert the new attempt into the database
+        # Insert Attempt
         db.execute(
             text("""
                 INSERT INTO Attempt 
@@ -402,6 +397,21 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
                 "attempt_type": next_attempt_type,
                 "attempt_number": next_attempt_number,
                 "score": score
+            }
+        )
+
+        # Get inserted attempt_id
+        attempt_id = db.execute(text("SELECT LAST_INSERT_ID()")).scalar()
+
+        # ✅ Insert responses
+        for question_id, selected_option_id in responses.items():
+            db.execute(text("""
+                INSERT INTO Response (attempt_id_fk, question_id_fk, response_text)
+                VALUES (:attempt_id_fk, :question_id_fk, :response_text)
+            """), {
+                "attempt_id_fk": attempt_id,
+                "question_id_fk": int(question_id),
+                "response_text": str(selected_option_id)
             })
 
         db.commit()
@@ -410,13 +420,109 @@ def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
             "attempt_number": next_attempt_number,
             "attempt_type": next_attempt_type,
             "score": score,
-            "message": f"Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with a score of {score}"
+            "message": f"✅ Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with score {score}"
         }
 
     except Exception as e:
         db.rollback()
-        print("Error:", traceback.format_exc())  # Log the full error trace
-        raise HTTPException(status_code=500, detail=f"Error recording attempt: {str(e)}")
+        print("❌ Error:", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"❌ Error recording attempt: {str(e)}")
+
+
+# Insert Attempt (Post Quiz Attempt)
+# @quiz_router.post("/attempt")
+# def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
+#     try:
+#         # Extract payload data
+#         student_id = payload.get("student_id")
+#         quiz_id = payload.get("quiz_id")
+#         score = payload.get("score")
+#         attempt_type = payload.get("attempt_type")  # pre or post
+
+#         # Validate input
+#         if not student_id or not quiz_id or score is None or not attempt_type:
+#             raise HTTPException(status_code=400, detail="Missing required parameters")
+
+#         # Ensure the student exists in the database
+#         student_exists = db.execute(
+#             text("SELECT 1 FROM student_details WHERE student_details_id_pk = :student_id"),
+#             {"student_id": student_id}
+#         ).fetchone()
+
+#         if not student_exists:
+#             raise HTTPException(status_code=404, detail="Student not found")
+
+#         # Ensure the quiz exists in the database
+#         quiz_exists = db.execute(
+#             text("SELECT 1 FROM Quiz WHERE quiz_id = :quiz_id"),
+#             {"quiz_id": quiz_id}
+#         ).fetchone()
+
+#         if not quiz_exists:
+#             raise HTTPException(status_code=404, detail="Quiz not found")
+
+#         # Check for the correct batch assignment
+#         assignment = db.execute(
+#             text("""
+#                 SELECT batch_assignment_id 
+#                 FROM Batch_Assignment 
+#                 WHERE student_id_fk = :student_id 
+#                   AND quiz_id_fk = :quiz_id
+#             """), {"student_id": student_id, "quiz_id": quiz_id}
+#         ).fetchone()
+
+#         if not assignment:
+#             raise HTTPException(status_code=403, detail="Quiz not assigned to this student")
+
+#         assignment_id = assignment._mapping["batch_assignment_id"]
+
+#         # Check the number of attempts
+#         attempt_check = db.execute(
+#             text("""
+#                 SELECT COUNT(*) AS attempt_count
+#                 FROM Attempt
+#                 WHERE student_id_fk = :student_id 
+#                   AND batch_assignment_id = :assignment_id
+#             """), {"student_id": student_id, "assignment_id": assignment_id}
+#         ).fetchone()
+
+#         current_attempt_count = attempt_check._mapping["attempt_count"] if attempt_check else 0
+
+#         if current_attempt_count >= 2:
+#             raise HTTPException(status_code=403, detail="Maximum attempts reached")
+
+#         # Determine the attempt type: "pre" or "post"
+#         next_attempt_type = "pre" if current_attempt_count == 0 else "post"
+#         next_attempt_number = current_attempt_count + 1
+
+#         # Insert the new attempt into the database
+#         db.execute(
+#             text("""
+#                 INSERT INTO Attempt 
+#                     (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number, score)
+#                 VALUES 
+#                     (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number, :score)
+#             """), {
+#                 "assignment_id": assignment_id,
+#                 "student_id": student_id,
+#                 "attempt_type": next_attempt_type,
+#                 "attempt_number": next_attempt_number,
+#                 "score": score
+#             })
+
+#         db.commit()
+
+#         return {
+#             "attempt_number": next_attempt_number,
+#             "attempt_type": next_attempt_type,
+#             "score": score,
+#             "message": f"Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with a score of {score}"
+#         }
+
+#     except Exception as e:
+#         db.rollback()
+#         print("Error:", traceback.format_exc())  # Log the full error trace
+#         raise HTTPException(status_code=500, detail=f"Error recording attempt: {str(e)}")
 
 
 @quiz_router.get("/attempts/{quiz_id}")
