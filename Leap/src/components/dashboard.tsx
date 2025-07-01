@@ -16,20 +16,18 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// New interface for individual attempt info
 interface AttemptInfo {
   attempt_type: string;
   score: number;
 }
 
-// Updated Quiz interface for type checking
 interface Quiz {
   quiz_id: number;
   quiz_title: string;
   description: string;
   attempt_count: number;
-  is_open: number; // Added to match backend's explicit integer return
-  attempts?: AttemptInfo[]; // Added to match backend's returned structure
+  is_open: number;
+  attempts?: AttemptInfo[];
 }
 
 const getColorClass = (attemptCount: number) => {
@@ -41,22 +39,63 @@ const getColorClass = (attemptCount: number) => {
 };
 
 const Dashboard = () => {
-  const [darkMode, setDarkMode] = useState(
-    localStorage.getItem("theme") === "dark"
-  );
+  const [darkMode, setDarkMode] = useState(localStorage.getItem("theme") === "dark");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [availableQuizzes, setAvailableQuizzes] = useState<Quiz[]>([]);
   const [attemptedQuizzes, setAttemptedQuizzes] = useState<Quiz[]>([]);
   const [studentName, setStudentName] = useState<string>("Student");
-  const [showLogoutModal, setShowLogoutModal] = useState(false); // State for controlling logout modal
+  const [projectCount, setProjectCount] = useState<number>(0);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      try {
+        const studentData = localStorage.getItem("student");
+        let studentId: number | null = null;
+
+        if (studentData) {
+          const parsed = JSON.parse(studentData);
+          setStudentName(parsed.name || "Student");
+          studentId = parsed.student_details_id_pk || parsed.student_id || null;
+        }
+
+        if (studentId) {
+          // ✅ Fetch project count
+          const countRes = await axios.get(`http://localhost:8000/api/projects/count/${studentId}`);
+          setProjectCount(countRes.data.count || 0);
+
+          // ✅ Fetch quizzes
+          const quizRes = await axios.get(
+            `http://localhost:8000/api/quizzes/assigned-quizzes/${studentId}`
+          );
+          const allQuizzes: Quiz[] = Array.isArray(quizRes.data) ? quizRes.data : [];
+
+          const uniqueQuizzes = allQuizzes.filter(
+            (value, index, self) => index === self.findIndex((t) => t.quiz_id === value.quiz_id)
+          );
+
+          const available = uniqueQuizzes.filter((q) => q.is_open === 1);
+          const attempted = uniqueQuizzes.filter((q) => q.attempt_count >= 1);
+
+          setAvailableQuizzes(available);
+          setAttemptedQuizzes(attempted);
+        }
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      }
+    };
+
+    fetchStudentData();
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
 
   const dashboardItems = [
     {
       icon: <Upload size={32} className="text-green-500" />,
       title: "Projects Uploaded",
-      count: 1,
+      count: projectCount,
       note: "Total Uploaded Projects",
       onClick: () => navigate("/upload-project"),
     },
@@ -82,21 +121,15 @@ const Dashboard = () => {
         const email = student.email;
 
         try {
-          const res = await axios.get(
-            `http://localhost:8000/student/badges/${email}`
-          );
-
+          const res = await axios.get(`http://localhost:8000/student/badges/${email}`);
           const assertions = res.data?.result || res.data?.results || [];
 
           if (assertions.length > 0) {
             const firstAssertion = assertions[0];
-
             const assertionId =
               firstAssertion.entityId ||
               firstAssertion.id ||
-              (firstAssertion["@id"]
-                ? firstAssertion["@id"].split("/").pop()
-                : null);
+              (firstAssertion["@id"] ? firstAssertion["@id"].split("/").pop() : null);
 
             const badgeId =
               firstAssertion.badgeclass?.id ||

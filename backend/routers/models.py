@@ -288,6 +288,16 @@ class Post(Base):
     css = Column(Text, nullable=False)
     created_by = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
 
 

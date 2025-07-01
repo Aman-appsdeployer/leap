@@ -42,6 +42,7 @@
     "chart.js": "^4.4.8",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "file-saver": "^2.0.5",
     "framer-motion": "^10.18.0",
     "grapesjs": "^0.22.8",
     "grapesjs-custom-code": "^1.0.2",
@@ -67,7 +68,8 @@
     "recharts": "^2.15.3",
     "sweetalert2": "^11.22.0",
     "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/aos": "^3.0.7",

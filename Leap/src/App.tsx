@@ -15,6 +15,7 @@ import QuizView from './components/pages/QuizView';
 import Services from "./components/pages/services";
 import Story from "./components/pages/story";
 import Student from "./components/pages/student";
+import StudentView from "./components/pages/StudentView";
 import Teacher from "./components/pages/teacher";
 import RootLayout from "./components/root-layout";
 
@@ -35,14 +36,13 @@ const App = () => {
                         <Route path="story" element={<Story />} />
                         <Route path="login" element={<Login />} />
                         <Route path="artefacts" element={<Artefacts />} />
-
-                        {/* ✅ Both capital and lowercase supported */}
-                        <Route path="PostEditor" element={<PostEditor />} />
                         <Route path="PostViewer" element={<PostViewer />} />
                     </Route>
 
                     <Route path="/quiz/:quiz_id" element={<QuizView />} />
+                    <Route path="/StudentView" element={<StudentView />} />
 
+                    {/* ✅ Protected route for students */}
                     <Route
                         path="/upload-project"
                         element={
@@ -52,6 +52,7 @@ const App = () => {
                         }
                     />
 
+                    {/* ✅ Protected teacher routes */}
                     <Route
                         path="teacher"
                         element={
@@ -69,14 +70,31 @@ const App = () => {
                         }
                     />
                     <Route
-                        path="/teacher/batch-assignments"
+                        path="teacher/batch-assignments"
                         element={
                             <ProtectedRoute allowedRoles={["teacher"]}>
                                 <BatchAssign />
                             </ProtectedRoute>
                         }
                     />
+                    <Route
+                        path="teacher/PostEditor"
+                        element={
+                            <ProtectedRoute allowedRoles={["teacher"]}>
+                                <PostEditor />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="teacher/StudentView"
+                        element={
+                            <ProtectedRoute allowedRoles={["teacher"]}>
+                                <StudentView />
+                            </ProtectedRoute>
+                        }
+                    />
 
+                    {/* ✅ Protected route for students */}
                     <Route
                         path="student"
                         element={
@@ -92,6 +110,7 @@ const App = () => {
 };
 
 export default App;
+
 
 
 

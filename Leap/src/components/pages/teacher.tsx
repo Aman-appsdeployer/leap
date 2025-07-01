@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import axios from "axios";
 import {
   Bell,
@@ -301,7 +294,7 @@ const Teacher = () => {
         </h2>
         <nav>
           <ul>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer">
+            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/StudentView")}>
               <Users className="mr-2" /> Students
             </li>
             <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer">
@@ -315,6 +308,9 @@ const Teacher = () => {
             </li>
             <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/batch-assignments")}>
               <Bell className="mr-2" /> Batch Assign
+            </li>
+            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/PostEditor")}>
+              <Bell className="mr-2" /> Post Create
             </li>
           </ul>
         </nav>
