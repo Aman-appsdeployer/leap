@@ -83,6 +83,50 @@ const StudentView = () => {
         </button>
       </div>
 
+
+
+      {/* ✅ Table Section */}
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <div className="overflow-auto">
+          <table className="min-w-full border border-gray-300">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border px-4 py-2">Student</th>
+                <th className="border px-4 py-2">Quiz ID</th>
+                <th className="border px-4 py-2">Question ID</th>
+                <th className="border px-4 py-2">Attempt Type</th>
+                <th className="border px-4 py-2">Total Score</th>
+                <th className="border px-4 py-2">Response</th>
+                <th className="border px-4 py-2">Answers Correct</th>
+                <th className="border px-4 py-2">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, index) => (
+                <tr key={index} className="text-center">
+                  <td className="border px-4 py-2">{row.name}</td>
+                  <td className="border px-4 py-2">{row.quiz_id}</td>
+                  <td className="border px-4 py-2">{row.question_id}</td>
+                  <td className="border px-4 py-2">{row.attempt_type}</td>
+                  <td className="border px-4 py-2">{row.score}</td>
+                  <td className="border px-4 py-2">{row.response_text}</td>
+                  <td
+                    className={`border px-4 py-2 ${row.is_correct === 1 ? "text-green-600" : "text-red-600"
+                      }`}
+                  >
+                    {row.is_correct === 1 ? "True" : "False"}
+                  </td>
+                  <td className="border px-4 py-2">
+                    {new Date(row.attempt_date).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {/* ✅ Chart Section: Progress Graph (left) + Pie Chart (right) */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
         {/* Left: Progress Graph */}
@@ -122,50 +166,6 @@ const StudentView = () => {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* ✅ Table Section */}
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <div className="overflow-auto">
-          <table className="min-w-full border border-gray-300">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border px-4 py-2">Student</th>
-                <th className="border px-4 py-2">Quiz ID</th>
-                <th className="border px-4 py-2">Question ID</th>
-                <th className="border px-4 py-2">Attempt Type</th>
-                <th className="border px-4 py-2">Total Score</th>
-                <th className="border px-4 py-2">Response</th>
-                <th className="border px-4 py-2">Answers Correct</th>
-                <th className="border px-4 py-2">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((row, index) => (
-                <tr key={index} className="text-center">
-                  <td className="border px-4 py-2">{row.name}</td>
-                  <td className="border px-4 py-2">{row.quiz_id}</td>
-                  <td className="border px-4 py-2">{row.question_id}</td>
-                  <td className="border px-4 py-2">{row.attempt_type}</td>
-                  <td className="border px-4 py-2">{row.score}</td>
-                  <td className="border px-4 py-2">{row.response_text}</td>
-                  <td
-                    className={`border px-4 py-2 ${
-                      row.is_correct === 1 ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {row.is_correct === 1 ? "True" : "False"}
-                  </td>
-                  <td className="border px-4 py-2">
-                    {new Date(row.attempt_date).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 };

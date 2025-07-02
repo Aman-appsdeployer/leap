@@ -280,15 +280,26 @@ class FileType(Base):
     active_status = Column(Enum(ActiveStatusEnum), default=ActiveStatusEnum.ACTIVE)
 
 
+class PostImage(Base):
+    __tablename__ = "post_images"
+    id = Column(Integer, primary_key=True)
+    image_url = Column(String(255), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"))
+    post = relationship("Post", back_populates="images")
+
 class Post(Base):
     __tablename__ = "posts"
-
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     html = Column(Text, nullable=False)
     css = Column(Text, nullable=False)
     created_by = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
+    images = relationship("PostImage", back_populates="post", cascade="all, delete", lazy="joined")
+
+# # ─── POST MODEL ───────────────────────────────────
+
+
     
     
     

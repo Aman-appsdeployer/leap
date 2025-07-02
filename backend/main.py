@@ -16,14 +16,14 @@ from routers.quiz_routes import quiz_router, public_router , badge_router, proje
 from routers.batch_routes import router as batch_router
 from routers import student_routes
 from routers.post_routes import router as post_router
+from fastapi.staticfiles import StaticFiles
 
 
 
 
-
-# === FastAPI App ===
 app = FastAPI()
-
+# === FastAPI App ===
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # === CORS ===
 app.add_middleware(
     CORSMiddleware,

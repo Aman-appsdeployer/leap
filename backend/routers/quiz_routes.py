@@ -326,6 +326,26 @@ def get_assigned_quizzes_for_student(student_id: int, db=Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch assigned quizzes: {str(e)}")
+    
+@quiz_router.get("/report/{quiz_id}")
+def get_quiz_report(quiz_id: int, db: Session = Depends(get_db)):
+    try:
+        rows = db.execute(text("""
+            SELECT 
+                s.name AS student_name,
+                MAX(CASE WHEN a.attempt_type = 'pre' THEN a.score END) AS pre_score,
+                MAX(CASE WHEN a.attempt_type = 'post' THEN a.score END) AS post_score
+            FROM student_details s
+            JOIN Attempt a ON s.student_details_id_pk = a.student_id_fk
+            JOIN Batch_Assignment ba ON ba.batch_assignment_id = a.batch_assignment_id
+            WHERE ba.quiz_id_fk = :quiz_id
+            GROUP BY s.student_details_id_pk
+        """), {"quiz_id": quiz_id}).fetchall()
+
+        return [dict(row._mapping) for row in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch quiz report: {str(e)}")
+
 
 @quiz_router.post("/attempt")
 def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
