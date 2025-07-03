@@ -1,12 +1,18 @@
 import axios from "axios";
 import { saveAs } from "file-saver";
 import {
-  Bell, Calendar, CheckCircle, Edit2, FileText,
-  LogOut, Menu, Moon, Plus, Sun, Trash, Users
+  Edit2,
+  FilePlus,
+  FileText,
+  Layers,
+  ListChecks,
+  LogOut, Menu, Moon,
+  Sun, Trash, Users
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+
 
 // UI Components
 const Button = ({ className = "", ...props }) => (
@@ -145,18 +151,54 @@ const QuizManagement = () => {
   };
 
   const downloadReportAsExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(reportData.map((row) => ({
-      "Student Name": row.student_name,
-      "Pre Score": row.pre_score ?? "-",
-      "Post Score": row.post_score ?? "-",
-      "Final Score": (row.post_score ?? 0) - (row.pre_score ?? 0)
-    })));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Quiz Report");
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
-    saveAs(blob, "quiz_report.xlsx");
-  };
+  if (reportData.length === 0) {
+    alert("No data to export.");
+    return;
+  }
+
+  const teacherName = reportData[0]?.teacher_name || "Unknown";
+
+  // Prepare report data
+  const formattedData = reportData.map((row) => ({
+    "Quiz Title": row.quiz_title,
+    "Class": row.class_name,
+    "Student Name": row.student_name,
+    "Pre Score": row.pre_score ?? "-",
+    "Post Score": row.post_score ?? "-",
+    "Post - Pre Score": (row.post_score ?? 0) - (row.pre_score ?? 0),
+  }));
+
+  // Step 1: Create a worksheet from the quiz data
+  const worksheet = XLSX.utils.json_to_sheet(formattedData, { origin: "A3" }); // Start from row 3
+
+  // Step 2: Manually add teacher name to A1
+  XLSX.utils.sheet_add_aoa(worksheet, [[`Teacher: ${teacherName}`]], { origin: "A1" });
+
+  // Step 3: Optional: style the header row
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "");
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: 2, c: C })]; // row 3 = header
+    if (cell) {
+      cell.s = {
+        font: { bold: true },
+      };
+    }
+  }
+
+  // Step 4: Build and export
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Quiz Report");
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+    cellStyles: true,
+  });
+
+  const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+  saveAs(blob, `quiz_report_${Date.now()}.xlsx`);
+};
+
 
   useEffect(() => { fetchQuizzes(); }, []);
 
@@ -164,90 +206,174 @@ const QuizManagement = () => {
     <div className="mt-10">
       {/* Create Quiz Form */}
       <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-        <h1 className="text-2xl font-bold mb-4 text-center text-black dark:text-white">
-          {editingQuizId ? "Edit Quiz" : "Create a New Quiz"}
-        </h1>
-        <Input className="w-full mb-4" placeholder="Enter Quiz Title" value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} />
-        {questions.map((q, qIndex) => (
-          <Card key={qIndex} className="mb-4 border border-gray-300 dark:border-gray-600">
-            <CardContent>
-              <Textarea className="w-full" placeholder="Enter Question" value={q.question} onChange={(e) => updateQuestion(qIndex, e.target.value)} />
-              {q.options.map((opt, oIndex) => (
-                <Input key={oIndex} className="w-full mt-2" placeholder={`Option ${oIndex + 1}`} value={opt} onChange={(e) => updateOption(qIndex, oIndex, e.target.value)} />
-              ))}
-              <select className="w-full mt-2 border p-2 rounded" value={q.answer} onChange={(e) => updateAnswer(qIndex, e.target.value)} required>
-                <option value="">Select Correct Answer</option>
-                {q.options.map((opt, idx) => (<option key={idx} value={opt}>{opt || `Option ${idx + 1}`}</option>))}
-              </select>
-            </CardContent>
-          </Card>
+  <h1 className="text-2xl font-bold mb-4 text-center text-black dark:text-white">
+    {editingQuizId ? "Edit Quiz" : "Create a New Quiz"}
+  </h1>
+
+  <Input
+    className="w-full mb-4 bg-white dark:bg-gray-900 text-black dark:text-white placeholder:text-gray-400"
+    placeholder="Enter Quiz Title"
+    value={quizTitle}
+    onChange={(e) => setQuizTitle(e.target.value)}
+  />
+
+  {questions.map((q, qIndex) => (
+    <Card key={qIndex} className="mb-4 border border-gray-300 dark:border-gray-600">
+      <CardContent>
+        <Textarea
+          className="w-full bg-white dark:bg-gray-900 text-black dark:text-white placeholder:text-gray-400"
+          placeholder="Enter Question"
+          value={q.question}
+          onChange={(e) => updateQuestion(qIndex, e.target.value)}
+        />
+        {q.options.map((opt, oIndex) => (
+          <Input
+            key={oIndex}
+            className="w-full mt-2 bg-white dark:bg-gray-900 text-black dark:text-white placeholder:text-gray-400"
+            placeholder={`Option ${oIndex + 1}`}
+            value={opt}
+            onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+          />
         ))}
-        <div className="flex justify-between">
-          <Button className="bg-blue-500 text-white flex items-center gap-2" onClick={addQuestion}><Plus size={16} /> Add Question</Button>
-          <Button className="bg-green-600 text-white flex items-center gap-2" onClick={handleSubmit}><CheckCircle size={16} /> {editingQuizId ? "Update Quiz" : "Create Quiz"}</Button>
-        </div>
-      </div>
+        <select
+          className="w-full mt-2 border p-2 rounded bg-white dark:bg-gray-900 text-black dark:text-white"
+          value={q.answer}
+          onChange={(e) => updateAnswer(qIndex, e.target.value)}
+          required
+        >
+          <option value="">Select Correct Answer</option>
+          {q.options.map((opt, idx) => (
+            <option key={idx} value={opt}>
+              {opt || `Option ${idx + 1}`}
+            </option>
+          ))}
+        </select>
+      </CardContent>
+    </Card>
+  ))}
+
+  <div className="flex justify-between">
+    <Button
+      className="bg-blue-500 text-white flex items-center gap-2 sm:gap-4 "
+      onClick={addQuestion}
+    >
+       Add Question
+    </Button>
+    <Button
+      className="bg-green-600 text-white flex items-center gap-2"
+      onClick={handleSubmit}
+    >
+       {editingQuizId ? "Update Quiz" : "Create Quiz"}
+    </Button>
+  </div>
+</div>
+
 
       {/* Quiz List */}
-      <div className="mt-10 max-w-3xl mx-auto">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Your Quizzes</h2>
-        {quizzes.map((quiz) => (
-          <div key={quiz.quiz_id} className="mb-4 p-4 bg-white dark:bg-gray-700 shadow rounded flex justify-between items-center">
-            <div>
-              <h3 className="font-semibold text-lg text-gray-900 dark:text-white">{quiz.quiz_title}</h3>
-            </div>
-            <div className="flex gap-2">
-              <Button className="bg-yellow-400 text-black p-2 rounded-full" onClick={() => handleEdit(quiz)}><Edit2 size={18} /></Button>
-              <Button className="bg-red-500 text-white p-2 rounded-full" onClick={() => handleDelete(quiz.quiz_id)}><Trash size={18} /></Button>
-              <Button className="bg-blue-500 text-white p-2 rounded-full" onClick={() => handleViewReport(quiz.quiz_id)}><FileText size={18} /></Button>
-            </div>
-          </div>
-        ))}
+     <div className="mt-10 max-w-4xl mx-auto">
+  <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white ">
+     Your Created Quizzes
+  </h2>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    {quizzes.map((quiz) => (
+      <div
+        key={quiz.quiz_id}
+        className="relative group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 transition hover:shadow-xl"
+      >
+        {/* Quiz Title */}
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 truncate">
+          {quiz.quiz_title}
+        </h3>
+
+        {/* Optional info (like # of questions or created date) */}
+        <p className="text-sm text-gray-500 dark:text-gray-400">Click to manage this quiz</p>
+
+        {/* Hidden Action Buttons (visible on hover) */}
+        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <Button
+            className="bg-yellow-400 hover:bg-yellow-500 text-black p-2 rounded-full shadow mt-5"
+            onClick={() => handleEdit(quiz)}
+            title="Edit Quiz"
+          >
+            <Edit2 size={18} />
+          </Button>
+          <Button
+            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow mt-5"
+            onClick={() => handleDelete(quiz.quiz_id)}
+            title="Delete Quiz"
+          >
+            <Trash size={18} />
+          </Button>
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow mt-5"
+            onClick={() => handleViewReport(quiz.quiz_id)}
+            title="View Report"
+          >
+            <FileText size={18} />
+          </Button>
+        </div>
       </div>
+    ))}
+  </div>
+</div>
+
 
       {/* Quiz Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-3xl">
-            <h2 className="text-xl font-bold mb-4 text-black dark:text-white text-center">Quiz Report</h2>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr>
-                  <th className="border-b p-2">Student Name</th>
-                  <th className="border-b p-2">Pre Score</th>
-                  <th className="border-b p-2">Post Score</th>
-                  <th className="border-b p-2">Post - Pre Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportData.map((row, i) => {
-                  const delta = (row.post_score ?? 0) - (row.pre_score ?? 0);
-                  return (
-                    <tr key={i}>
-                      <td className="border-b p-2">{row.student_name}</td>
-                      <td className="border-b p-2">{row.pre_score ?? "-"}</td>
-                      <td className="border-b p-2">{row.post_score ?? "-"}</td>
-                      <td className={`border-b p-2 font-bold ${delta >= 0 ? "text-green-600" : "text-red-500"}`}>{isNaN(delta) ? "-" : delta}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="text-center mt-4 flex gap-8 justify-center">
-              <Button className="bg-blue-600 text-white" onClick={downloadReportAsExcel}>Download Excel</Button>
-              <Button className="bg-gray-500 text-white" onClick={() => setShowReportModal(false)}>Close</Button>
-            </div>
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-3xl">
+      <h2 className="text-2xl font-bold mb-2 text-black dark:text-white text-center">
+        Quiz Report
+      </h2>
 
-            
-
-            
-            
-
-
-           
-          </div>
-        </div>
+      {/* ✅ Show Teacher Name at the top */}
+      {reportData.length > 0 && (
+        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 text-center">
+          Teacher: {reportData[0].teacher_name}
+        </h3>
       )}
+
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr>
+            <th className="border-b p-2">Quiz Name</th>
+            <th className="border-b p-2">Class</th>
+            {/* <th className="border-b p-2">Teacher Name</th> */}
+            <th className="border-b p-2">Student Name</th>
+            <th className="border-b p-2">Pre Score</th>
+            <th className="border-b p-2">Post Score</th>
+            <th className="border-b p-2">Post - Pre Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reportData.map((row, i) => {
+            const delta = (row.post_score ?? 0) - (row.pre_score ?? 0);
+            return (
+              <tr key={i}>
+                <td className="border-b p-4">{row.quiz_title}</td>
+                <td className="border-b p-4">{row.class_name}</td>
+                {/* <td className="border-b p-2">{row.teacher_name}</td> */}
+                <td className="border-b p-2">{row.student_name}</td>
+                <td className="border-b p-2">{row.pre_score ?? "-"}</td>
+                <td className="border-b p-2">{row.post_score ?? "-"}</td>
+                <td className={`border-b p-2 font-bold ${delta >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  {isNaN(delta) ? "-" : delta}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="text-center mt-4 flex gap-8 justify-center">
+        <Button className="bg-blue-600 text-white" onClick={downloadReportAsExcel}>Download Excel</Button>
+        <Button className="bg-gray-500 text-white" onClick={() => setShowReportModal(false)}>Close</Button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
@@ -274,13 +400,34 @@ const Teacher = () => {
         <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Teacher Dashboard</h2>
         <nav>
           <ul>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/StudentView")}><Users className="mr-2" /> Students</li>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"><Calendar className="mr-2" /> Schedule</li>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"><Bell className="mr-2" /> Notifications</li>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/batches")}><Bell className="mr-2" /> Batches</li>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/batch-assignments")}><Bell className="mr-2" /> Batch Assign</li>
-            <li className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer" onClick={() => navigate("/teacher/PostEditor")}><Bell className="mr-2" /> Post Create</li>
-          </ul>
+  <li
+    className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"
+    onClick={() => navigate("/teacher/StudentView")}
+  >
+    <Users className="mr-2" /> Students
+  </li>
+
+  <li
+    className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"
+    onClick={() => navigate("/teacher/batches")}
+  >
+    <Layers className="mr-2" /> Batches
+  </li>
+
+  <li
+    className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"
+    onClick={() => navigate("/teacher/batch-assignments")}
+  >
+    <ListChecks className="mr-2" /> Batch Assign
+  </li>
+
+  <li
+    className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"
+    onClick={() => navigate("/teacher/PostEditor")}
+  >
+    <FilePlus className="mr-2" /> Post Create
+  </li>
+</ul>
         </nav>
       </aside>
 
@@ -315,6 +462,14 @@ const Teacher = () => {
 };
 
 export default Teacher;
+
+
+
+
+
+
+
+
 
 
 

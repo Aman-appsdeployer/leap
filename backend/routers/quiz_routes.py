@@ -332,19 +332,31 @@ def get_quiz_report(quiz_id: int, db: Session = Depends(get_db)):
     try:
         rows = db.execute(text("""
             SELECT 
+                q.quiz_title,
                 s.name AS student_name,
+                COALESCE(t.name, 'Unknown') AS teacher_name,
+                c.class AS class_name,
                 MAX(CASE WHEN a.attempt_type = 'pre' THEN a.score END) AS pre_score,
                 MAX(CASE WHEN a.attempt_type = 'post' THEN a.score END) AS post_score
             FROM student_details s
             JOIN Attempt a ON s.student_details_id_pk = a.student_id_fk
             JOIN Batch_Assignment ba ON ba.batch_assignment_id = a.batch_assignment_id
-            WHERE ba.quiz_id_fk = :quiz_id
-            GROUP BY s.student_details_id_pk
+            JOIN Quiz q ON q.quiz_id = ba.quiz_id_fk
+            LEFT JOIN teacher_details t ON q.created_by_mentor_id_fk = t.teacher_details_id_pk
+            LEFT JOIN class_details c ON s.class_id_fk = c.class_id_pk
+            WHERE q.quiz_id = :quiz_id
+            GROUP BY q.quiz_title, s.student_details_id_pk, s.name, t.name, c.class
         """), {"quiz_id": quiz_id}).fetchall()
 
         return [dict(row._mapping) for row in rows]
+
     except Exception as e:
+        import traceback
+        print("Error fetching quiz report:")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to fetch quiz report: {str(e)}")
+
+
 
 
 @quiz_router.post("/attempt")
