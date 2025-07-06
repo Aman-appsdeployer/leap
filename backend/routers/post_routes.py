@@ -1,4 +1,4 @@
-# Updated FastAPI Router with Image Support
+# Updated FastAPI Router with Title & Image Support
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List
@@ -16,9 +16,11 @@ router = APIRouter(
     tags=["Posts"]
 )
 
+# Ensure upload directory exists
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# ✅ Upload an image and return its URL
 @router.post("/upload-image")
 def upload_image(file: UploadFile = File(...)):
     file_ext = file.filename.split('.')[-1]
@@ -31,9 +33,11 @@ def upload_image(file: UploadFile = File(...)):
     image_url = f"/uploads/{filename}"
     return JSONResponse(content={"url": image_url})
 
+# ✅ Create a post with title, html, css, image URLs
 @router.post("/create", response_model=dict)
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
     new_post = Post(
+        title=post.title,             # ✅ Save the title
         html=post.html,
         css=post.css,
         created_by=post.created_by
@@ -42,7 +46,7 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_post)
 
-    # Save associated images if present
+    # ✅ Save associated image URLs
     if post.image_urls:
         for url in post.image_urls:
             db.add(PostImage(image_url=url, post_id=new_post.id))
@@ -53,6 +57,7 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
         "post_id": new_post.id
     }
 
+# ✅ Get latest post
 @router.get("/latest", response_model=PostResponse)
 def get_latest_post(db: Session = Depends(get_db)):
     post = db.query(Post).order_by(Post.created_at.desc()).first()
@@ -60,6 +65,7 @@ def get_latest_post(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No posts found")
     return post
 
+# ✅ Get all posts
 @router.get("/all", response_model=List[PostResponse])
 def get_all_posts(db: Session = Depends(get_db)):
     posts = db.query(Post).order_by(Post.created_at.desc()).all()

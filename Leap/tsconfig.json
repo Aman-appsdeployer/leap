@@ -20,7 +20,7 @@
       },
   
       // add any global types you need—e.g. swiper, jest, etc.
-      "types": ["swiper"]
+      // "types": ["swiper"]
     },
     "include": ["src"],
     "references": [
