@@ -2,6 +2,7 @@ import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import endpoints from "../../api/endpoints";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ const Login: React.FC = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:8000/login", {
+      const response = await axios.post(endpoints.auth.login, {
         user_type: userType.toLowerCase(),
         username,
         password,

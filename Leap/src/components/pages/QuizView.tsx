@@ -2,6 +2,7 @@ import axios from "axios";
 import clsx from "clsx"; // Make sure clsx is installed
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import endpoints from "../../api/endpoints";
 
 const QuizView = () => {
   const location = useLocation();

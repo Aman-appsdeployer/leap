@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AsyncSelect from "react-select/async";
+import endpoints from "../../api/endpoints";
 
 interface Option {
   label: string;
