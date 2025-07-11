@@ -1,6 +1,10 @@
+<<<<<<< HEAD
 
 const BASE_URL = "http://127.0.0.1:8000"; // or your deployed backend URL
 
+=======
+export const BASE_URL = "http://127.0.0.1:8000"; 
+>>>>>>> b74972c9 (main chla leave per)
 const endpoints = {
   auth: {
     login: `${BASE_URL}/login`,
@@ -61,3 +65,4 @@ const endpoints = {
 };
 
 export default endpoints;
+

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import endpoints from "@/api/endpoints";
+=======
+import { BASE_URL } from "@/api/endpoints";
+>>>>>>> b74972c9 (main chla leave per)
 import axios from "axios";
 import { saveAs } from "file-saver";
 import {
@@ -18,6 +22,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
+<<<<<<< HEAD
+=======
+
+
+// UI Components
+>>>>>>> b74972c9 (main chla leave per)
 const Button = ({ className = "", ...props }) => (
   <button className={`px-4 py-2 rounded-lg ${className}`} {...props} />
 );
@@ -130,9 +140,13 @@ const QuizManagement = () => {
       })),
     };
 
+<<<<<<< HEAD
     const url = editingQuizId
       ? endpoints.quizzes.update(editingQuizId)
       : endpoints.quizzes.create;
+=======
+    const url = editingQuizId ? `${BASE_URL}/api/quizzes/quiz/${editingQuizId}` : `${BASE_URL}/api/quizzes/quiz`;
+>>>>>>> b74972c9 (main chla leave per)
     const method = editingQuizId ? "PUT" : "POST";
 
     try {
@@ -147,9 +161,25 @@ const QuizManagement = () => {
         resetForm();
         fetchQuizzes();
       } else alert("Failed to save quiz.");
+<<<<<<< HEAD
     } catch (err) {
       console.error(err);
       alert("Quiz save failed.");
+=======
+    } catch (error) {
+      console.error("Quiz save failed:", error);
+      alert("Error saving quiz");
+    }
+  };
+
+  const fetchQuizzes = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/quizzes`);
+      setQuizzes(res.data);
+    } catch (error) {
+      console.error("Error fetching quizzes:", error);
+      alert("Failed to load quizzes.");
+>>>>>>> b74972c9 (main chla leave per)
     }
   };
 
@@ -161,17 +191,30 @@ const QuizManagement = () => {
 
   const fetchQuizzes = async () => {
     try {
+<<<<<<< HEAD
       const res = await axios.get(endpoints.quizzes.getAll);
       setAllQuizzes(res.data);
       setQuizzes(res.data);
     } catch (err) {
       alert("Failed to fetch quizzes.");
+=======
+      await axios.delete(`${BASE_URL}/api/quizzes/quiz/${quizId}`);
+      alert("Deleted");
+      fetchQuizzes();
+    } catch (error) {
+      console.error("Error deleting quiz:", error);
+      alert("Failed to delete quiz.");
+>>>>>>> b74972c9 (main chla leave per)
     }
   };
 
   const handleEdit = (quiz) => {
     setQuizTitle(quiz.quiz_title);
+<<<<<<< HEAD
     axios.get(endpoints.quizzes.getById(quiz.quiz_id)).then((res) => {
+=======
+    axios.get(`${BASE_URL}/api/quizzes/quiz/${quiz.quiz_id}`).then((res) => {
+>>>>>>> b74972c9 (main chla leave per)
       const { questions } = res.data;
       setQuestions(
         questions.map((q) => ({
@@ -186,9 +229,13 @@ const QuizManagement = () => {
 
   const handleViewReport = async (quizId) => {
     try {
+<<<<<<< HEAD
       const res = await axios.get(
         `http://localhost:8000/api/quizzes/report/${quizId}`
       );
+=======
+      const res = await axios.get(`${BASE_URL}/api/quizzes/report/${quizId}`);
+>>>>>>> b74972c9 (main chla leave per)
       setReportData(res.data);
       setShowReportModal(true);
     } catch (err) {

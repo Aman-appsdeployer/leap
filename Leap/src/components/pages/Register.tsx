@@ -17,6 +17,7 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  import { BASE_URL } from "@/api/endpoints"; // Adjust the import path as necessary
 
   const handleRegister = async () => {
     setError("");
@@ -36,7 +37,7 @@ const Register: React.FC = () => {
     }
 
     try {
-      const response = await axios.post("http://209.182.233.188:8000/register", {
+      const response = await axios.post(`${BASE_URL}/register`, {
         name,
         phone,
         gender,

@@ -179,7 +179,11 @@ def read_batches(db: Session = Depends(get_db)):
 #         sql = """
 #           SELECT 
 #             s.student_details_id_pk AS student_id,
+<<<<<<< HEAD
 #             s.name, s.email, s.phone,s.gender,
+=======
+#             s.name, s.email, s.phone,
+>>>>>>> b74972c9 (main chla leave per)
 #             s.class_id_fk, s.section_id_fk, s.school_id_fk
 #           FROM student_details s
 #         """
@@ -214,17 +218,26 @@ def filter_students(
 ):
     try:
         sql = """
+<<<<<<< HEAD
           SELECT 
             s.student_details_id_pk AS student_id,
             s.name, s.email, s.phone, s.gender,
             s.class_id_fk, s.section_id_fk, s.school_id_fk
           FROM student_details s
+=======
+            SELECT 
+                s.student_details_id_pk AS student_id,
+                s.name, s.email, s.phone,
+                s.class_id_fk, s.section_id_fk, s.school_id_fk
+            FROM student_details s
+>>>>>>> b74972c9 (main chla leave per)
         """
         clauses, params = [], {}
 
         if exclude_assigned:
             clauses.append("""
                 NOT EXISTS (
+<<<<<<< HEAD
                     SELECT 1 FROM BatchStudent bs
                     WHERE bs.student_id = s.student_details_id_pk
                 )
@@ -247,8 +260,26 @@ def filter_students(
             clauses.append("s.academic_year = :session_id")
             params["session_id"] = str(session_id)
 
+=======
+                    SELECT 1 FROM BatchStudent bs 
+                    WHERE bs.student_id = s.student_details_id_pk
+                )
+            """)
+        if school_id is not None:
+            clauses.append("s.school_id_fk = :school_id")
+            params["school_id"] = school_id
+        if class_id is not None:
+            clauses.append("s.class_id_fk = :class_id")
+            params["class_id"] = class_id
+        if section_id is not None:
+            clauses.append("s.section_id_fk = :section_id")
+            params["section_id"] = section_id
+>>>>>>> b74972c9 (main chla leave per)
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
+
+        print("DEBUG FILTER SQL:", sql)
+        print("DEBUG FILTER PARAMS:", params)
 
         rows = db.execute(text(sql), params).fetchall()
         return [dict(r._mapping) for r in rows]
@@ -410,11 +441,27 @@ def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_
 @router.delete("/{batch_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_batch(batch_id: int, db: Session = Depends(get_db)):
     try:
+        # 1. Delete Attempts linked to Batch_Assignment
+        db.execute(text("""
+            DELETE FROM Attempt 
+            WHERE batch_assignment_id IN (
+                SELECT batch_assignment_id FROM Batch_Assignment WHERE batch_id_fk = :batch_id
+            )
+        """), {"batch_id": batch_id})
+
+        # 2. Delete Batch_Assignment entries
+        db.execute(text("DELETE FROM Batch_Assignment WHERE batch_id_fk = :batch_id"), {"batch_id": batch_id})
+
+        # 3. Delete from BatchStudent
         db.execute(text("DELETE FROM BatchStudent WHERE batch_id = :batch_id"), {"batch_id": batch_id})
+
+        # 4. Delete the Batch itself
         res = db.execute(text("DELETE FROM Batch WHERE batch_id = :batch_id"), {"batch_id": batch_id})
         if res.rowcount == 0:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found")
+
         db.commit()
+
     except HTTPException:
         db.rollback()
         raise
@@ -422,6 +469,8 @@ def delete_batch(batch_id: int, db: Session = Depends(get_db)):
         db.rollback()
         logging.exception("Failed to delete batch")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
 
 @router.get("/classes", response_model=List[dict])
 def get_classes(db: Session = Depends(get_db)):

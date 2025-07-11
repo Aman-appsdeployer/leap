@@ -1,7 +1,12 @@
+<<<<<<< HEAD
 import endpoints from "@/api/endpoints";
+=======
+import { BASE_URL } from "@/api/endpoints";
+>>>>>>> b74972c9 (main chla leave per)
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
 import { motion } from "framer-motion";
+
 import {
   BadgeCheck,
   Bell,
@@ -64,12 +69,20 @@ const Dashboard = () => {
 
         if (studentId) {
           // ✅ Fetch project count
+<<<<<<< HEAD
           const countRes = await axios.get(endpoints.projects.count(studentId));
+=======
+          const countRes = await axios.get(`${BASE_URL}/api/projects/count/${studentId}`);
+>>>>>>> b74972c9 (main chla leave per)
           setProjectCount(countRes.data.count || 0);
 
           // ✅ Fetch quizzes
           const quizRes = await axios.get(
+<<<<<<< HEAD
             endpoints.quizzes.assignedToStudent(studentId)
+=======
+            `${BASE_URL}/api/quizzes/assigned-quizzes/${studentId}`
+>>>>>>> b74972c9 (main chla leave per)
           );
           const allQuizzes: Quiz[] = Array.isArray(quizRes.data) ? quizRes.data : [];
 
@@ -121,8 +134,13 @@ const Dashboard = () => {
         const student = JSON.parse(studentData);
         const email = student.email;
 
+<<<<<<< HEAD
         try { 
           const res = await axios.get(endpoints.badges.getByEmail(email));
+=======
+        try {
+          const res = await axios.get(`${BASE_URL}/student/badges/${email}`);
+>>>>>>> b74972c9 (main chla leave per)
           const assertions = res.data?.result || res.data?.results || [];
 
           if (assertions.length > 0) {
@@ -178,7 +196,11 @@ const Dashboard = () => {
           setStudentName(parsed.name || "Student");
           studentId = parsed.student_details_id_pk || parsed.student_id || null;
         } else {
+<<<<<<< HEAD
           const res = await axios.get(endpoints.dashboard.student, {
+=======
+          const res = await axios.get(`${BASE_URL}/student`, {
+>>>>>>> b74972c9 (main chla leave per)
             headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           setStudentName(res.data.name || "Student");
@@ -188,8 +210,12 @@ const Dashboard = () => {
 
         if (studentId) {
           const quizRes = await axios.get(
+<<<<<<< HEAD
            endpoints.quizzes.assignedToStudent(studentId)
 
+=======
+            `${BASE_URL}/api/quizzes/assigned-quizzes/${studentId}`
+>>>>>>> b74972c9 (main chla leave per)
           );
 
           const allQuizzes: Quiz[] = Array.isArray(quizRes.data) ? quizRes.data : [];
@@ -244,7 +270,11 @@ const Dashboard = () => {
     }
 
     try {
+<<<<<<< HEAD
     const quizRes = await axios.get(endpoints.quizzes.getById(quizId));
+=======
+      const quizRes = await axios.get(`${BASE_URL}/api/quizzes/quiz/${quizId}`);
+>>>>>>> b74972c9 (main chla leave per)
       navigate(`/quiz/${quizId}`, {
         state: { ...quizRes.data },
       });
@@ -445,6 +475,13 @@ const Dashboard = () => {
 export default Dashboard;
 
 
+<<<<<<< HEAD
+=======
+
+
+
+
+>>>>>>> b74972c9 (main chla leave per)
 
 
 

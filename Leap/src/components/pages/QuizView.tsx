@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 import endpoints from "@/api/endpoints";
+=======
+import { BASE_URL } from "@/api/endpoints"; // Adjust the import path as needed
+>>>>>>> b74972c9 (main chla leave per)
 import axios from "axios";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
 
 const QuizView = () => {
   const location = useLocation();
@@ -38,7 +43,11 @@ const QuizView = () => {
       const parsed = JSON.parse(studentData);
       const studentId = parsed.student_details_id_pk || parsed.student_id;
       const response = await axios.get(
+<<<<<<< HEAD
         `${endpoints.quizzes.attemptCount}?quiz_id=${quizId}&student_id=${studentId}`
+=======
+        `${BASE_URL}/api/quizzes/attempt/count?quiz_id=${quizId}&student_id=${studentId}`
+>>>>>>> b74972c9 (main chla leave per)
       );
       const count = response.data.attempt_count || 0;
       setAttemptCount(count);
@@ -72,7 +81,11 @@ const QuizView = () => {
       const studentId = parsed.student_details_id_pk || parsed.student_id;
       const attemptType = attemptCount === 0 ? "pre" : "post";
 
+<<<<<<< HEAD
       await axios.post(endpoints.quizzes.attempt, {
+=======
+      await axios.post(`${BASE_URL}/api/quizzes/attempt`, {
+>>>>>>> b74972c9 (main chla leave per)
         student_id: studentId,
         quiz_id: quiz.quiz_id,
         attempt_type: attemptType,
