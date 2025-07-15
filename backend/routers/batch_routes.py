@@ -11,6 +11,10 @@ router = APIRouter(prefix="/api/batches", tags=["Batches"])
 
 # ─── SCHEMAS ───────────────────────────────────────
 class BatchBase(BaseModel):
+<<<<<<< HEAD
+=======
+    batch_name: Optional[str] = None
+>>>>>>> 693386cb (batches changes)
     school_id_fk: int
     created_by: int
     class_id: int
@@ -33,9 +37,13 @@ class BatchOut(BatchBase):
     batch_id: int
     batch_name: str
     student_ids: List[int]
+<<<<<<< HEAD
     school_name: Optional[str] = None 
     boy_count: int = 0
     girl_count: int = 0
+=======
+    school_name: Optional[str] = None  # ✅ default value added
+>>>>>>> 693386cb (batches changes)
 
     class Config:
         orm_mode = True
@@ -44,6 +52,7 @@ class BatchOut(BatchBase):
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
 def create_batch(batch: BatchCreate, db: Session = Depends(get_db)):
     try:
+<<<<<<< HEAD
         # ❗ Check if a batch with the same school_id, class_id, and section_id already exists
         duplicate_check = db.execute(text("""
             SELECT 1 FROM Batch 
@@ -76,12 +85,28 @@ def create_batch(batch: BatchCreate, db: Session = Depends(get_db)):
             text("SELECT session_name FROM Session WHERE session_id = :id"),
             {"id": batch.session_id}
         ).fetchone()
+=======
+        # Fetch class, section, and session labels for dynamic batch name
+        class_row = db.execute(text("SELECT class FROM class_details WHERE class_id_pk = :id"),
+                               {"id": batch.class_id}).fetchone()
+        section_row = db.execute(text("SELECT section FROM sections WHERE section_id_pk = :id"),
+                                 {"id": batch.section_id}).fetchone()
+        session_row = db.execute(text("SELECT session_name FROM Session WHERE session_id = :id"),
+                                 {"id": batch.session_id}).fetchone()
+>>>>>>> 693386cb (batches changes)
 
         if not (class_row and section_row and session_row):
             raise HTTPException(status_code=400, detail="Invalid class, section, or session ID")
 
+<<<<<<< HEAD
         batch_name = f"{batch.school_id_fk} CLASS {class_row[0]} {section_row[0]} {session_row[0]}"
 
+=======
+        # ✅ Fix: access tuple values by index, not by key
+        batch_name = f"{batch.school_id_fk} CLASS {class_row[0]} {section_row[0]} {session_row[0]}"
+
+        # Insert into Batch table
+>>>>>>> 693386cb (batches changes)
         db.execute(text("""
             INSERT INTO Batch (batch_name, school_id_fk, created_by, class_id, section_id, session_id)
             VALUES (:batch_name, :school_id_fk, :created_by, :class_id, :section_id, :session_id)
@@ -95,17 +120,45 @@ def create_batch(batch: BatchCreate, db: Session = Depends(get_db)):
         })
         db.commit()
 
+<<<<<<< HEAD
         batch_id = db.execute(text("SELECT MAX(batch_id) FROM Batch")).scalar()
+=======
+        # Get newly created batch_id
+        batch_id = db.execute(text("SELECT MAX(batch_id) FROM Batch")).scalar()
+        if not batch_id:
+            raise HTTPException(status_code=500, detail="Could not retrieve batch ID")
+>>>>>>> 693386cb (batches changes)
 
         for sid in batch.student_ids:
+<<<<<<< HEAD
+=======
+            valid = db.execute(text("""
+                SELECT 1 FROM student_details
+                WHERE student_details_id_pk = :sid
+                  AND class_id_fk = :class_id
+                  AND section_id_fk = :section_id
+            """), {
+                "sid": sid,
+                "class_id": batch.class_id,
+                "section_id": batch.section_id
+            }).fetchone()
+            if not valid:
+                raise HTTPException(status_code=400, detail=f"Student {sid} does not match class/section")
+
+>>>>>>> 693386cb (batches changes)
             db.execute(text("""
                 INSERT INTO BatchStudent (batch_id, student_id)
                 VALUES (:batch_id, :student_id)
             """), {"batch_id": batch_id, "student_id": sid})
 
         db.commit()
+<<<<<<< HEAD
 
         return BatchOut(batch_id=batch_id, batch_name=batch_name, **batch.dict())
+=======
+        return BatchOut(batch_id=batch_id, batch_name=batch_name, **batch.dict(exclude={"batch_name"}))
+
+>>>>>>> 693386cb (batches changes)
 
     except HTTPException:
         db.rollback()
@@ -117,6 +170,10 @@ def create_batch(batch: BatchCreate, db: Session = Depends(get_db)):
 
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 693386cb (batches changes)
 # ─── READ ALL ──────────────────────────────────────
 @router.get("", response_model=List[BatchOut])
 def read_batches(db: Session = Depends(get_db)):
@@ -126,7 +183,11 @@ def read_batches(db: Session = Depends(get_db)):
               b.batch_id,
               b.batch_name,
               b.school_id_fk,
+<<<<<<< HEAD
               sd.school_name,
+=======
+             s.school_name,
+>>>>>>> 693386cb (batches changes)
               b.created_by,
               b.class_id,
               b.section_id,
@@ -135,6 +196,7 @@ def read_batches(db: Session = Depends(get_db)):
               COUNT(CASE WHEN s.gender = 'Male' THEN 1 END) AS boy_count,
               COUNT(CASE WHEN s.gender = 'Female' THEN 1 END) AS girl_count
             FROM Batch b
+            JOIN school_details s ON b.school_id_fk = s.school_id_pk
             LEFT JOIN BatchStudent bs ON bs.batch_id = b.batch_id
             LEFT JOIN student_details s ON bs.student_id = s.student_details_id_pk
             LEFT JOIN school_details sd ON sd.school_id_pk = b.school_id_fk
@@ -149,9 +211,15 @@ def read_batches(db: Session = Depends(get_db)):
                 batch_id=r.batch_id,
                 batch_name=r.batch_name,
                 school_id_fk=r.school_id_fk,
+<<<<<<< HEAD
                 school_name=r.school_name,
                 class_id=r.class_id,created_by=r.created_by if r.created_by is not None else 0,
 
+=======
+                school_name=r.school_name, 
+                created_by=r.created_by,
+                class_id=r.class_id,
+>>>>>>> 693386cb (batches changes)
                 section_id=r.section_id,
                 session_id=r.session_id,
                 student_ids=ids,
@@ -167,6 +235,7 @@ def read_batches(db: Session = Depends(get_db)):
 
 
 # ─── FILTER STUDENTS ──────────────────────────────
+<<<<<<< HEAD
 # @router.get("/students/filter", response_model=List[dict])
 # def filter_students(
 #     school_id: Optional[int] = Query(None),
@@ -207,6 +276,8 @@ def read_batches(db: Session = Depends(get_db)):
 #         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
+=======
+>>>>>>> 693386cb (batches changes)
 @router.get("/students/filter", response_model=List[dict])
 def filter_students(
     school_id: Optional[int] = Query(None),
@@ -432,8 +503,26 @@ def update_batch(batch_id: int, updated: BatchCreate, db: Session = Depends(get_
     except Exception as e:
         db.rollback()
         logging.exception("Failed to update batch")
+<<<<<<< HEAD
         raise HTTPException(status_code=500, detail="Failed to update batch")
 
+=======
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+@router.get("/{batch_id}/students", response_model=dict)
+def get_students_in_batch(batch_id: int, db: Session = Depends(get_db)):
+    """
+    Returns all student IDs assigned to a given batch.
+    """
+    rows = db.execute(text("""
+        SELECT student_id FROM BatchStudent WHERE batch_id = :batch_id
+    """), {"batch_id": batch_id}).fetchall()
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Batch not found or no students assigned")
+
+    return {"student_ids": [r[0] for r in rows]}
+>>>>>>> 693386cb (batches changes)
 
 
 

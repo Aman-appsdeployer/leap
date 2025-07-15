@@ -11,12 +11,18 @@ import {
   FileText,
   Layers,
   ListChecks,
+<<<<<<< HEAD
   LogOut,
   Menu,
   Moon,
   Sun,
   Trash,
   Users,
+=======
+  LogOut, Menu, Moon,
+  Sun,
+  Users
+>>>>>>> 693386cb (batches changes)
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -416,11 +422,21 @@ const QuizManagement = () => {
           >
             + Add Question
           </Button>
+<<<<<<< HEAD
           <Button
             className="bg-green-600 hover:bg-green-700 text-white text-sm"
             onClick={handleSubmit}
           >
             {editingQuizId ? "Update Quiz" : "Create Quiz"}
+=======
+         
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow mt-5"
+            onClick={() => handleViewReport(quiz.quiz_id)}
+            title="View Report"
+          >
+            <FileText size={18} />
+>>>>>>> 693386cb (batches changes)
           </Button>
         </div>
       </div>
