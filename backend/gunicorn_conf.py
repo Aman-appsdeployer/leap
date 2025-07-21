@@ -1,0 +1,12 @@
+bind = '209.182.233.188:8000'
+user = 'www'
+workers = 1
+threads = 2
+backlog = 512
+chdir = '/www/wwwroot/NodeProject/react/v3/protal/backend'
+access_log_format = '%(t)s %(p)s %(h)s "%(r)s" %(s)s %(L)s %(b)s %(f)s" "%(a)s"'
+loglevel = 'info'
+worker_class = 'uvicorn.workers.UvicornWorker'
+errorlog = chdir + '/logs/error.log'
+accesslog = chdir + '/logs/access.log'
+pidfile = chdir + '/logs/leap_back.pid'

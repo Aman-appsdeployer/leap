@@ -1,3 +1,4 @@
+import endpoints from "@/api/endpoints"; // adjust path if needed
 import axios from "axios";
 import { ArrowLeft } from "lucide-react";
 import React, { useState } from "react";
@@ -33,10 +34,9 @@ const BatchAssign: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await axios.post("/api/quizzes/assign-quiz-to-batch", payload);
+      await axios.post(endpoints.quizzes.assignToBatch, payload);
       setShowModal(true);
 
-      // Auto-navigate after 5 seconds
       setTimeout(() => {
         navigate(-1);
       }, 5000);
@@ -50,7 +50,7 @@ const BatchAssign: React.FC = () => {
 
   const loadBatches = async (inputValue: string) => {
     try {
-      const res = await axios.get("/api/batches/batches");
+      const res = await axios.get(endpoints.batches.all);
       setBatchError(null);
       return res.data.map((batch: Option) => ({
         label: batch.label,
@@ -65,7 +65,7 @@ const BatchAssign: React.FC = () => {
 
   const loadQuizzes = async (inputValue: string) => {
     try {
-      const res = await axios.get("/api/quizzes/");
+      const res = await axios.get(endpoints.quizzes.getAll);
       setQuizError(null);
       return res.data.map((quiz: any) => ({
         label: quiz.quiz_title,
@@ -87,7 +87,7 @@ const BatchAssign: React.FC = () => {
           className="flex items-center text-sm hover:text-blue-600 dark:hover:text-blue-400 transition"
         >
           <ArrowLeft className="mr-1" size={18} />
-        
+          Back
         </button>
       </div>
 
@@ -155,10 +155,3 @@ const BatchAssign: React.FC = () => {
 };
 
 export default BatchAssign;
-
-
-
-
-
-
-

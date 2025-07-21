@@ -36,7 +36,7 @@ const Register: React.FC = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:8000/register", {
+      const response = await axios.post("http://209.182.233.188:8000/register", {
         name,
         phone,
         gender,

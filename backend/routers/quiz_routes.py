@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 import logging
 import requests
 import os
-
-from sqlalchemy import text
+from .models import Attempt, Response, QuestionOption
+from sqlalchemy import text, func
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -47,7 +47,7 @@ class QuizAssignmentRequest(BaseModel):
 @quiz_router.post("/quiz")
 def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
     try:
-        # ✅ Use default Teacher  ID
+        # ✅ Use default Teacher ID (you can override this later if needed)
         default_mentor_id = 3
 
         # ✅ Confirm mentor exists
@@ -59,12 +59,29 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
         if not mentor_exists:
             raise HTTPException(status_code=400, detail="❌ Default mentor (ID 3) not found in teacher_details.")
 
+        # ✅ Validate top-level quiz fields
+        if not data.quiz_title.strip():
+            raise HTTPException(status_code=400, detail="❌ Quiz title is required.")
+        if not data.questions or len(data.questions) == 0:
+            raise HTTPException(status_code=400, detail="❌ Quiz must contain at least one question.")
+
+        # ✅ Validate all questions before inserting
+        for i, question in enumerate(data.questions):
+            if not question.question_text.strip():
+                raise HTTPException(status_code=400, detail=f"❌ Question {i+1} is empty.")
+            if not question.options or len(question.options) < 2:
+                raise HTTPException(status_code=400, detail=f"❌ Question {i+1} must have at least two options.")
+            if any(not opt.option_text.strip() for opt in question.options):
+                raise HTTPException(status_code=400, detail=f"❌ Question {i+1} has an empty option.")
+            if not any(opt.is_correct for opt in question.options):
+                raise HTTPException(status_code=400, detail=f"❌ Question {i+1} must have at least one correct answer.")
+
         # ✅ Insert into Quiz table
         result = db.execute(text("""
             INSERT INTO Quiz (quiz_title, description, created_by_mentor_id_fk, is_open, start_time)
             VALUES (:quiz_title, :description, :created_by, :is_open, :start_time)
         """), {
-            "quiz_title": data.quiz_title,
+            "quiz_title": data.quiz_title.strip(),
             "description": data.description or "",
             "created_by": default_mentor_id,
             "is_open": data.is_open,
@@ -78,16 +95,12 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
 
         # ✅ Insert each question and its options
         for question in data.questions:
-            # ✅ Validate question has at least 2 options
-            if not question.options or len(question.options) < 2:
-                raise HTTPException(status_code=400, detail="Each question must have at least two options.")
-
             question_result = db.execute(text("""
                 INSERT INTO Question (quiz_id_fk, question_text, question_type, points)
                 VALUES (:quiz_id_fk, :question_text, :question_type, :points)
             """), {
                 "quiz_id_fk": quiz_id,
-                "question_text": question.question_text,
+                "question_text": question.question_text.strip(),
                 "question_type": question.question_type,
                 "points": question.points
             })
@@ -104,7 +117,7 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
                     VALUES (:question_id_fk, :option_text, :is_correct)
                 """), {
                     "question_id_fk": question_id,
-                    "option_text": option.option_text,
+                    "option_text": option.option_text.strip(),
                     "is_correct": option.is_correct
                 })
 
@@ -115,9 +128,6 @@ def create_quiz(data: FullQuizCreate, db=Depends(get_db)):
         db.rollback()
         print("❌ QUIZ CREATION ERROR:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"❌ Failed to create quiz: {str(e)}")
-
-
-
 
 
 @quiz_router.get("/quiz/{quiz_id}")
@@ -358,124 +368,107 @@ def get_quiz_report(quiz_id: int, db: Session = Depends(get_db)):
 
 
 
-
 @quiz_router.post("/attempt")
-def attempt_quiz(payload: dict = Body(...), db=Depends(get_db)):
+def attempt_quiz(payload: dict = Body(...), db: Session = Depends(get_db)):
     try:
-        # Extract payload data
         student_id = payload.get("student_id")
         quiz_id = payload.get("quiz_id")
-        score = payload.get("score")
-        attempt_type = payload.get("attempt_type")  # 'pre' or 'post'
-        responses = payload.get("responses", {})  # {question_id: selected_option_id}
+        responses = payload.get("responses", [])
+        score = payload.get("score", 0)
 
-        # Validate input
-        if not student_id or not quiz_id or score is None or not attempt_type:
-            raise HTTPException(status_code=400, detail="Missing required parameters")
+        if not all([student_id, quiz_id, responses]):
+            raise HTTPException(status_code=400, detail="❌ Missing required fields")
 
-        # Ensure student exists
-        student_exists = db.execute(
-            text("SELECT 1 FROM student_details WHERE student_details_id_pk = :student_id"),
-            {"student_id": student_id}
-        ).fetchone()
-        if not student_exists:
-            raise HTTPException(status_code=404, detail="Student not found")
+        # ✅ Step 1: Verify quiz assignment
+        assignment = db.execute(text("""
+            SELECT batch_assignment_id FROM Batch_Assignment
+            WHERE student_id_fk = :student_id AND quiz_id_fk = :quiz_id
+        """), {"student_id": student_id, "quiz_id": quiz_id}).fetchone()
 
-        # Ensure quiz exists
-        quiz_exists = db.execute(
-            text("SELECT 1 FROM Quiz WHERE quiz_id = :quiz_id"),
-            {"quiz_id": quiz_id}
-        ).fetchone()
-        if not quiz_exists:
-            raise HTTPException(status_code=404, detail="Quiz not found")
-
-        # Ensure quiz is assigned to student
-        assignment = db.execute(
-            text("""
-                SELECT batch_assignment_id 
-                FROM Batch_Assignment 
-                WHERE student_id_fk = :student_id 
-                  AND quiz_id_fk = :quiz_id
-            """), {"student_id": student_id, "quiz_id": quiz_id}
-        ).fetchone()
         if not assignment:
-            raise HTTPException(status_code=403, detail="Quiz not assigned to this student")
+            raise HTTPException(status_code=403, detail="❌ Student not assigned to this quiz")
 
-        assignment_id = assignment._mapping["batch_assignment_id"]
+        batch_assignment_id = assignment[0]
 
-        # Check number of attempts
-        attempt_check = db.execute(
-            text("""
-                SELECT COUNT(*) AS attempt_count
-                FROM Attempt
-                WHERE student_id_fk = :student_id 
-                  AND batch_assignment_id = :assignment_id
-            """), {"student_id": student_id, "assignment_id": assignment_id}
-        ).fetchone()
+        # ✅ Step 2: Check previous attempts
+        attempt_count = db.execute(text("""
+            SELECT COUNT(*) FROM Attempt
+            WHERE student_id_fk = :student_id AND batch_assignment_id = :batch_assignment_id
+        """), {
+            "student_id": student_id,
+            "batch_assignment_id": batch_assignment_id
+        }).scalar()
 
-        current_attempt_count = attempt_check._mapping["attempt_count"] if attempt_check else 0
-        if current_attempt_count >= 2:
-            raise HTTPException(status_code=403, detail="Maximum attempts reached")
+        if attempt_count >= 2:
+            raise HTTPException(status_code=403, detail="❌ Max 2 attempts (pre + post) already submitted")
 
-        # Determine next attempt type
-        next_attempt_type = "pre" if current_attempt_count == 0 else "post"
-        next_attempt_number = current_attempt_count + 1
+        attempt_number = attempt_count + 1
+        attempt_type = "pre" if attempt_number == 1 else "post"
 
-        # Insert Attempt
-        db.execute(
-            text("""
-                INSERT INTO Attempt 
-                    (batch_assignment_id, student_id_fk, attempt_type, attempt_date, attempt_number, score)
-                VALUES 
-                    (:assignment_id, :student_id, :attempt_type, NOW(), :attempt_number, :score)
-            """), {
-                "assignment_id": assignment_id,
-                "student_id": student_id,
-                "attempt_type": next_attempt_type,
-                "attempt_number": next_attempt_number,
-                "score": score
-            }
-        )
+        # ✅ Step 3: Insert into Attempt (REMOVE quiz_id_fk)
+        db.execute(text("""
+            INSERT INTO Attempt (
+                batch_assignment_id, student_id_fk, attempt_date,
+                attempt_type, attempt_number, score
+            ) VALUES (
+                :batch_assignment_id, :student_id_fk, :attempt_date,
+                :attempt_type, :attempt_number, :score
+            )
+        """), {
+            "batch_assignment_id": batch_assignment_id,
+            "student_id_fk": student_id,
+            "attempt_date": datetime.utcnow(),
+            "attempt_type": attempt_type,
+            "attempt_number": attempt_number,
+            "score": score
+        })
 
-        # Get inserted attempt_id
         attempt_id = db.execute(text("SELECT LAST_INSERT_ID()")).scalar()
 
-        # ✅ Insert responses
-        for question_id, selected_option_id in responses.items():
+        # ✅ Step 4: Insert all responses
+        for response in responses:
+            question_id = response.get("question_id")
+            response_text = response.get("response_text")
+
+            if question_id is None or response_text is None:
+                continue
+
             db.execute(text("""
                 INSERT INTO Response (attempt_id_fk, question_id_fk, response_text)
-                VALUES (:attempt_id_fk, :question_id_fk, :response_text)
+                VALUES (:attempt_id, :question_id, :response_text)
             """), {
-                "attempt_id_fk": attempt_id,
-                "question_id_fk": int(question_id),
-                "response_text": str(selected_option_id)
+                "attempt_id": attempt_id,
+                "question_id": int(question_id),
+                "response_text": str(response_text)
             })
 
         db.commit()
 
         return {
-            "attempt_number": next_attempt_number,
-            "attempt_type": next_attempt_type,
-            "score": score,
-            "message": f"✅ Attempt #{next_attempt_number} recorded as '{next_attempt_type}' with score {score}"
+            "message": f"✅ {attempt_type.upper()} attempt recorded",
+            "attempt_type": attempt_type,
+            "attempt_number": attempt_number,
+            "score": score
         }
 
     except Exception as e:
         db.rollback()
-        print("❌ Error:", traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"❌ Error recording attempt: {str(e)}")
+        print("❌ QUIZ ATTEMPT ERROR:", e)
+        raise HTTPException(status_code=500, detail=f"❌ Failed to record quiz attempt: {str(e)}")
 
 
 @quiz_router.get("/attempts/{quiz_id}")
 def get_attempts_by_quiz(quiz_id: int, student_id: int, db=Depends(get_db)):
     """
-    Fetches the attempts made by a student for a specific quiz and returns both `pre` and `post` scores.
+    Fetches the pre and post attempt scores made by a student for a specific quiz.
+    This joins via Batch_Assignment since Attempt table does not directly contain quiz_id.
     """
     try:
         attempts = db.execute(text("""
-            SELECT attempt_type, score
-            FROM Attempt
-            WHERE student_id_fk = :student_id AND quiz_id = :quiz_id
+            SELECT a.attempt_type, a.score
+            FROM Attempt a
+            JOIN Batch_Assignment ba ON a.batch_assignment_id = ba.batch_assignment_id
+            WHERE ba.quiz_id_fk = :quiz_id AND a.student_id_fk = :student_id
         """), {"student_id": student_id, "quiz_id": quiz_id}).fetchall()
 
         attempts_data = {
@@ -486,12 +479,15 @@ def get_attempts_by_quiz(quiz_id: int, student_id: int, db=Depends(get_db)):
         for attempt in attempts:
             if attempt["attempt_type"] == "pre":
                 attempts_data["pre_score"] = attempt["score"]
-            if attempt["attempt_type"] == "post":
+            elif attempt["attempt_type"] == "post":
                 attempts_data["post_score"] = attempt["score"]
 
         return attempts_data
+
     except Exception as e:
+        print("❌ Error fetching attempts:", str(e))
         raise HTTPException(status_code=500, detail=f"Failed to fetch attempts: {str(e)}")
+
 
    
 @quiz_router.get("/attempt/count")

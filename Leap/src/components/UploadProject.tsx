@@ -31,10 +31,10 @@ const UploadProject = () => {
   const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
-    axios.get("http://localhost:8000/api/projects/topics").then((res) => setTopics(res.data));
-    axios.get("http://localhost:8000/api/projects/languages").then((res) => setLanguages(res.data));
-    axios.get("http://localhost:8000/api/projects/file-types").then((res) => setFileTypes(res.data));
-    axios.get("http://localhost:8000/api/projects/subjects").then((res) => setSubjects(res.data));
+    axios.get("http://209.182.233.188:8000/api/projects/topics").then((res) => setTopics(res.data));
+    axios.get("http://209.182.233.188:8000/api/projects/languages").then((res) => setLanguages(res.data));
+    axios.get("http://209.182.233.188:8000/api/projects/file-types").then((res) => setFileTypes(res.data));
+    axios.get("http://209.182.233.188:8000/api/projects/subjects").then((res) => setSubjects(res.data));
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -80,7 +80,7 @@ const UploadProject = () => {
     }
 
     try {
-      const res = await axios.post("http://localhost:8000/api/projects/upload-project", data);
+      const res = await axios.post("http://209.182.233.188:8000/api/projects/upload-project", data);
       setSuccessMessage(" " + res.data.message);
 
       // ⏳ Wait 5 seconds, then go back
@@ -199,10 +199,10 @@ export default UploadProject;
 //   const [confirmed, setConfirmed] = useState(false);
 
 //   useEffect(() => {
-//     axios.get("http://localhost:8000/api/projects/topics").then((res) => setTopics(res.data));
-//     axios.get("http://localhost:8000/api/projects/languages").then((res) => setLanguages(res.data));
-//     axios.get("http://localhost:8000/api/projects/file-types").then((res) => setFileTypes(res.data));
-//     axios.get("http://localhost:8000/api/projects/subjects").then((res) => setSubjects(res.data));
+//     axios.get("http://209.182.233.188:8000/api/projects/topics").then((res) => setTopics(res.data));
+//     axios.get("http://209.182.233.188:8000/api/projects/languages").then((res) => setLanguages(res.data));
+//     axios.get("http://209.182.233.188:8000/api/projects/file-types").then((res) => setFileTypes(res.data));
+//     axios.get("http://209.182.233.188:8000/api/projects/subjects").then((res) => setSubjects(res.data));
 //   }, []);
 
 //   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -255,7 +255,7 @@ export default UploadProject;
 //     }
 
 //     try {
-//       const res = await axios.post("http://localhost:8000/api/projects/upload-project", data);
+//       const res = await axios.post("http://209.182.233.188:8000/api/projects/upload-project", data);
 //       alert("✅ " + res.data.message);
 //     } catch (err) {
 //       console.error(err);

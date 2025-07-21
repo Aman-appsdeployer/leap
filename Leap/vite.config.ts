@@ -25,6 +25,11 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  // server: {
+  //       host: "209.182.233.188", 
+  //       port: 5173,
+  //       strictPort: true,
+  //   },
   server: {
     proxy: {
       '/api': {
@@ -34,5 +39,6 @@ export default defineConfig({
       },
     },
   },
+
 });
 

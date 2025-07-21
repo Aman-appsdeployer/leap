@@ -1,9 +1,9 @@
+import endpoints from "@/api/endpoints";
 import axios from "axios";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Edit2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AsyncSelect from "react-select/async";
-import endpoints from "../../api/endpoints";
 
 interface Option {
   label: string;
@@ -20,10 +20,13 @@ interface Batch {
   batch_name: string;
   school_id_fk: number;
   class_id: number;
+  class_name?: string;
   section_id: number;
+  section_name?: string;
   session_id: number;
   created_by: number;
   student_ids: number[];
+  school_name?: string;
 }
 
 const BatchAssignment: React.FC = () => {
@@ -58,7 +61,7 @@ const BatchAssignment: React.FC = () => {
         selectedClass.value,
         selectedSection.value,
         selectedSchool.value,
-        editingBatchId === null
+        false
       );
     } else {
       setStudents([]);
@@ -68,20 +71,60 @@ const BatchAssignment: React.FC = () => {
   }, [selectedClass, selectedSection, selectedSchool]);
 
   const fetchDropdownData = async () => {
-    const [cls, sec, ses] = await Promise.all([
-      axios.get("/api/batches/classes"),
-      axios.get("/api/batches/sections"),
-      axios.get("/api/batches/sessions"),
-    ]);
-    setClassOptions(cls.data.map((c: any) => ({ value: c.class_id, label: c.label })));
-    setSectionOptions(sec.data.map((s: any) => ({ value: s.section_id, label: s.label })));
-    setSessionOptions(ses.data.map((s: any) => ({ value: s.session_id, label: s.session_name })));
+    try {
+      const [cls, sec, ses] = await Promise.all([
+        axios.get(endpoints.batches.classes),
+        axios.get(endpoints.batches.sections),
+        axios.get(endpoints.batches.sessions),
+      ]);
+
+      setClassOptions(
+        cls.data.map((c: any) => ({ value: c.class_id, label: c.label }))
+      );
+      setSectionOptions(
+        sec.data.map((s: any) => ({ value: s.section_id, label: s.label }))
+      );
+      setSessionOptions(
+        ses.data.map((s: any) => ({
+          value: s.session_id,
+          label: s.session_name,
+        }))
+      );
+    } catch (err) {
+      console.error("Dropdown fetch failed", err);
+    }
   };
 
   const loadSchools = useCallback(async (input: string) => {
-    const res = await axios.get("/api/schools", { params: { search: input } });
-    return res.data.map((s: any) => ({ label: s.school_name, value: s.school_id }));
+    try {
+      const res = await axios.get(endpoints.schools.list, {
+        params: { search: input },
+      });
+      return Array.isArray(res.data)
+        ? res.data.map((s: any) => ({
+            label: s.school_name,
+            value: s.school_id,
+          }))
+        : [];
+    } catch (err) {
+      console.error("School search failed:", err);
+      return [];
+    }
   }, []);
+
+  const fetchSchoolById = async (id: number) => {
+    try {
+      const res = await axios.get(endpoints.schools.list, {
+        params: { school_id: id },
+      });
+      const school = res.data.find((s: any) => s.school_id === id);
+      return school
+        ? { value: id, label: school.school_name }
+        : { value: id, label: `School ${id}` };
+    } catch {
+      return { value: id, label: `School ${id}` };
+    }
+  };
 
   const fetchStudents = async (
     class_id: number,
@@ -89,15 +132,30 @@ const BatchAssignment: React.FC = () => {
     school_id: number,
     excludeAssigned: boolean
   ) => {
-    const res = await axios.get("/api/batches/students/filter", {
-      params: { class_id, section_id, school_id, exclude_assigned: excludeAssigned },
-    });
-    setStudents(res.data);
+    try {
+      const res = await axios.get(endpoints.batches.filterStudents, {
+        params: {
+          class_id,
+          section_id,
+          school_id,
+          exclude_assigned: excludeAssigned,
+        },
+      });
+      setStudents(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Student fetch failed:", err);
+      setStudents([]);
+    }
   };
 
   const fetchBatches = async () => {
-    const res = await axios.get<Batch[]>("/api/batches");
-    setBatches(res.data);
+    try {
+      const res = await axios.get(endpoints.batches.get);
+      setBatches(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Batch fetch failed:", err);
+      setBatches([]);
+    }
   };
 
   const handleSelectAll = () => {
@@ -130,7 +188,6 @@ const BatchAssignment: React.FC = () => {
 
   const handleSubmit = async () => {
     if (
-      !batchName ||
       !selectedSchool ||
       !selectedClass ||
       !selectedSection ||
@@ -142,7 +199,6 @@ const BatchAssignment: React.FC = () => {
     }
 
     const payload = {
-      batch_name: batchName,
       school_id_fk: selectedSchool.value,
       created_by: 1,
       class_id: selectedClass.value,
@@ -154,10 +210,10 @@ const BatchAssignment: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (editingBatchId) {
-        await axios.put(`/api/batches/${editingBatchId}`, payload);
+        await axios.put(endpoints.batches.update(editingBatchId), payload);
         alert("Batch updated!");
       } else {
-        await axios.post("/api/batches", payload);
+        await axios.post(endpoints.batches.create, payload);
         alert("Batch created!");
       }
       fetchBatches();
@@ -171,35 +227,41 @@ const BatchAssignment: React.FC = () => {
   const handleEdit = async (b: Batch) => {
     setEditingBatchId(b.batch_id);
     setBatchName(b.batch_name);
-    setSelectedSchool({ value: b.school_id_fk, label: `School ${b.school_id_fk}` });
+    const schoolOption = await fetchSchoolById(b.school_id_fk);
+    setSelectedSchool(schoolOption);
     setSelectedClass({ value: b.class_id, label: `Class ${b.class_id}` });
-    setSelectedSection({ value: b.section_id, label: `Section ${b.section_id}` });
-    setSelectedSession({ value: b.session_id, label: `Session ${b.session_id}` });
+    setSelectedSection({
+      value: b.section_id,
+      label: `Section ${b.section_id}`,
+    });
+    setSelectedSession({
+      value: b.session_id,
+      label: `Session ${b.session_id}`,
+    });
 
     await fetchStudents(b.class_id, b.section_id, b.school_id_fk, false);
     const assignedRes = await axios.get<{ student_ids: number[] }>(
-      `/api/batches/${b.batch_id}/students`
+      `${endpoints.batches.get}/${b.batch_id}/students`
     );
-    setSelectedStudents(assignedRes.data.student_ids);
+    setSelectedStudents(assignedRes.data.student_ids || []);
     setSelectAll(false);
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this batch?")) return;
-    await axios.delete(`/api/batches/${id}`);
+    await axios.delete(endpoints.batches.delete(id));
     fetchBatches();
   };
 
   return (
     <div className="p-6 min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-      {/* 🔙 Back Icon */}
       <div className="mb-4">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center text-sm hover:text-blue-600 dark:hover:text-blue-400 transition"
         >
           <ArrowLeft className="mr-1" size={18} />
-          
+          Back
         </button>
       </div>
 
@@ -208,13 +270,6 @@ const BatchAssignment: React.FC = () => {
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Batch Name"
-          value={batchName}
-          onChange={(e) => setBatchName(e.target.value)}
-          className="p-2 border rounded bg-white dark:bg-gray-800 text-black dark:text-white"
-        />
         <AsyncSelect
           cacheOptions
           loadOptions={loadSchools}
@@ -226,7 +281,10 @@ const BatchAssignment: React.FC = () => {
         <select
           value={selectedClass?.value || ""}
           onChange={(e) =>
-            setSelectedClass(classOptions.find((c) => c.value === Number(e.target.value)) || null)
+            setSelectedClass(
+              classOptions.find((c) => c.value === Number(e.target.value)) ||
+                null
+            )
           }
           className="p-2 border rounded bg-white dark:bg-gray-800 text-black dark:text-white"
         >
@@ -240,7 +298,10 @@ const BatchAssignment: React.FC = () => {
         <select
           value={selectedSection?.value || ""}
           onChange={(e) =>
-            setSelectedSection(sectionOptions.find((s) => s.value === Number(e.target.value)) || null)
+            setSelectedSection(
+              sectionOptions.find((s) => s.value === Number(e.target.value)) ||
+                null
+            )
           }
           className="p-2 border rounded bg-white dark:bg-gray-800 text-black dark:text-white"
         >
@@ -254,7 +315,10 @@ const BatchAssignment: React.FC = () => {
         <select
           value={selectedSession?.value || ""}
           onChange={(e) =>
-            setSelectedSession(sessionOptions.find((s) => s.value === Number(e.target.value)) || null)
+            setSelectedSession(
+              sessionOptions.find((s) => s.value === Number(e.target.value)) ||
+                null
+            )
           }
           className="p-2 border rounded bg-white dark:bg-gray-800 text-black dark:text-white"
         >
@@ -281,12 +345,15 @@ const BatchAssignment: React.FC = () => {
             key={s.student_id}
             className={`p-3 border rounded cursor-pointer transition ${
               selectedStudents.includes(s.student_id)
-                ? "bg-red-500 text-white"
-                : "bg-white dark:bg-gray-800"
+                ? "bg-green-500 text-white"
+                : "bg-white dark:bg-gray-800 text-black dark:text-white"
             }`}
             onClick={() => handleSelectStudent(s.student_id)}
           >
-            {s.name}
+            <p className="font-semibold">{s.name}</p>
+            <p className="text-sm text-green-700 dark:text-gray-300">
+              ID: {s.student_id}
+            </p>
           </div>
         ))}
       </div>
@@ -301,39 +368,44 @@ const BatchAssignment: React.FC = () => {
 
       <h2 className="text-xl font-semibold mt-8 mb-4">Existing Batches</h2>
       <div className="space-y-4">
-        {batches.map((b) => (
-          <div
-            key={b.batch_id}
-            className="p-4 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded flex justify-between items-center"
-          >
-            <div>
-              <p className="font-semibold">{b.batch_name}</p>
-              <p className="text-sm text-red-600 dark:text-red-400">
-                Class {b.class_id} - Section {b.section_id} - Session {b.session_id}
-              </p>
+        {batches.length > 0 ? (
+          batches.map((b) => (
+            <div
+              key={b.batch_id}
+              className="p-4 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded flex justify-between items-center"
+            >
+              <div>
+                <p className="font-semibold">{b.batch_name}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {b.school_name || `School ${b.school_id_fk}`}
+                </p>
+              </div>
+              <div className="space-x-2">
+                <button
+                  onClick={() => handleEdit(b)}
+                  className="px-3 py-1 bg-yellow-500 text-white rounded flex items-center justify-center"
+                >
+                  <Edit2 size={16} />
+                </button>
+                {/* <button
+                  onClick={() => handleDelete(b.batch_id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded"
+                >
+                  Delete
+                </button> */}
+              </div>
             </div>
-            <div className="space-x-2">
-              <button
-                onClick={() => handleEdit(b)}
-                className="px-3 py-1 bg-yellow-500 text-white rounded"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(b.batch_id)}
-                className="px-3 py-1 bg-red-500 text-white rounded"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <p>No batches available.</p>
+        )}
       </div>
     </div>
   );
 };
 
 export default BatchAssignment;
+
 
 
 

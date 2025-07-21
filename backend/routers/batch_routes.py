@@ -11,7 +11,6 @@ router = APIRouter(prefix="/api/batches", tags=["Batches"])
 
 # ─── SCHEMAS ───────────────────────────────────────
 class BatchBase(BaseModel):
-    batch_name: str
     school_id_fk: int
     created_by: int
     class_id: int
@@ -19,26 +18,49 @@ class BatchBase(BaseModel):
     session_id: int
 
 class BatchCreate(BatchBase):
-    student_ids: List[int] = Field(..., min_items=1, description="List of student IDs")
+    student_ids: List[int] = Field(..., min_items=1)
 
+# For response only, batch_name included
 class BatchOut(BatchBase):
     batch_id: int
+    batch_name: str
     student_ids: List[int]
+    school_name: Optional[str] = None  
 
     class Config:
         orm_mode = True
-
 
 # ─── CREATE ───────────────────────────────────────
 @router.post("", response_model=BatchOut, status_code=status.HTTP_201_CREATED)
 def create_batch(batch: BatchCreate, db: Session = Depends(get_db)):
     try:
-        # Insert into Batch and get last inserted ID
-        result = db.execute(text("""
+        class_row = db.execute(
+            text("SELECT class FROM class_details WHERE class_id_pk = :id"),
+            {"id": batch.class_id}
+        ).fetchone()
+
+        section_row = db.execute(
+            text("SELECT section FROM sections WHERE section_id_pk = :id"),
+            {"id": batch.section_id}
+        ).fetchone()
+
+        session_row = db.execute(
+            text("SELECT session_name FROM Session WHERE session_id = :id"),
+            {"id": batch.session_id}
+        ).fetchone()
+
+        if not (class_row and section_row and session_row):
+            raise HTTPException(status_code=400, detail="Invalid class, section, or session ID")
+
+        # ✅ This is your final automated batch_name format:
+        batch_name = f"{batch.school_id_fk} CLASS {class_row[0]} {section_row[0]} {session_row[0]}"
+
+        # Insert batch
+        db.execute(text("""
             INSERT INTO Batch (batch_name, school_id_fk, created_by, class_id, section_id, session_id)
             VALUES (:batch_name, :school_id_fk, :created_by, :class_id, :section_id, :session_id)
         """), {
-            "batch_name": batch.batch_name,
+            "batch_name": batch_name,
             "school_id_fk": batch.school_id_fk,
             "created_by": batch.created_by,
             "class_id": batch.class_id,
@@ -47,45 +69,25 @@ def create_batch(batch: BatchCreate, db: Session = Depends(get_db)):
         })
         db.commit()
 
-        # Fetch last inserted ID safely
+        # Fetch inserted batch_id
         batch_id = db.execute(text("SELECT MAX(batch_id) FROM Batch")).scalar()
-        if not batch_id:
-            raise RuntimeError("Could not retrieve new batch_id")
 
-        # Insert students into BatchStudent
+        # Insert students
         for sid in batch.student_ids:
-            valid = db.execute(text("""
-                SELECT 1 FROM student_details
-                WHERE student_details_id_pk = :sid
-                  AND class_id_fk = :class_id
-                  AND section_id_fk = :section_id
-                LIMIT 1
-            """), {
-                "sid": sid,
-                "class_id": batch.class_id,
-                "section_id": batch.section_id
-            }).fetchone()
-            if not valid:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Student {sid} not in class {batch.class_id}/section {batch.section_id}"
-                )
-
             db.execute(text("""
                 INSERT INTO BatchStudent (batch_id, student_id)
                 VALUES (:batch_id, :student_id)
             """), {"batch_id": batch_id, "student_id": sid})
 
         db.commit()
-        return BatchOut(batch_id=batch_id, **batch.dict())
+        return BatchOut(batch_id=batch_id, batch_name=batch_name, **batch.dict())
 
-    except HTTPException:
-        db.rollback()
-        raise
     except Exception:
         db.rollback()
         logging.exception("Failed to create batch")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
 
 
 # ─── READ ALL ──────────────────────────────────────
@@ -97,6 +99,7 @@ def read_batches(db: Session = Depends(get_db)):
               b.batch_id,
               b.batch_name,
               b.school_id_fk,
+              sd.school_name,
               b.created_by,
               b.class_id,
               b.section_id,
@@ -104,6 +107,7 @@ def read_batches(db: Session = Depends(get_db)):
               GROUP_CONCAT(bs.student_id) AS student_ids
             FROM Batch b
             LEFT JOIN BatchStudent bs ON bs.batch_id = b.batch_id
+            LEFT JOIN school_details sd ON sd.school_id_pk = b.school_id_fk
             GROUP BY b.batch_id
             ORDER BY b.batch_id DESC
         """)).fetchall()
@@ -115,6 +119,7 @@ def read_batches(db: Session = Depends(get_db)):
                 batch_id=r.batch_id,
                 batch_name=r.batch_name,
                 school_id_fk=r.school_id_fk,
+                school_name=r.school_name,
                 created_by=r.created_by,
                 class_id=r.class_id,
                 section_id=r.section_id,
@@ -126,6 +131,9 @@ def read_batches(db: Session = Depends(get_db)):
     except Exception:
         logging.exception("Failed to read batches")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+
 
 
 # ─── FILTER STUDENTS ──────────────────────────────

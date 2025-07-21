@@ -1,6 +1,6 @@
-
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -9,26 +9,36 @@ import hashlib
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from db.database import get_db
 from routers.school_routes import router as school_router
-from routers.quiz_routes import quiz_router, public_router , badge_router, project_router
+from routers.quiz_routes import quiz_router, public_router, badge_router, project_router
 from routers.batch_routes import router as batch_router
 from routers import student_routes
 from routers.post_routes import router as post_router
-from fastapi.staticfiles import StaticFiles
 
+# === Configuration ===
+SECRET_KEY = os.getenv("JWT_SECRET", "CHANGE_ME_IN_PRODUCTION")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-
-
-app = FastAPI()
 # === FastAPI App ===
+app = FastAPI()
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+
 
 # === CORS ===
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,10 +64,6 @@ def verify_password(plain_password: str, hashed_password: str):
     return False, None
 
 # === JWT ===
-SECRET_KEY = "AMAN"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
@@ -66,6 +72,7 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
 
 def get_current_user(authorization: str = Header(...)):
     try:
+        print("Auth Header:", authorization)  
         scheme, token = authorization.split()
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid auth header")
@@ -76,7 +83,8 @@ def get_current_user(authorization: str = Header(...)):
         return username
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError:
+    except jwt.PyJWTError as e:
+        print("JWT Error:", str(e))
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # === Routes ===
@@ -126,11 +134,10 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": stored_username})
     redirect_path = "/student" if expected_type == 1 else "/teacher"
     
-    # ⬇️ Add this to fetch student details if user is a student
     student_data = None
     if expected_type == 1:
         student = db.execute(text("""
-            SELECT student_details_id_pk, school_id_fk, class_id_fk, section_id_fk,name
+            SELECT student_details_id_pk, school_id_fk, class_id_fk, section_id_fk, name
             FROM student_details
             WHERE email = :email
         """), {"email": stored_username}).fetchone()
@@ -153,7 +160,6 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         "redirect": redirect_path,
         "student": student_data
     }
-
 
 @app.get("/student")
 def student_dashboard(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -187,7 +193,11 @@ app.include_router(quiz_router)
 app.include_router(public_router)
 app.include_router(badge_router)
 app.include_router(project_router)
-app.include_router(post_router)   
+app.include_router(post_router)
+
+
+
+
 
 
 

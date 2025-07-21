@@ -1,5 +1,5 @@
 
-const BASE_URL = "http://localhost:8000"; // or your deployed backend URL
+const BASE_URL = "http://127.0.0.1:8000"; // or your deployed backend URL
 
 const endpoints = {
   auth: {
@@ -9,7 +9,7 @@ const endpoints = {
     student: `${BASE_URL}/student`,
     teacher: `${BASE_URL}/teacher`,
   },
-  schools: {
+  schools: { 
     list: `${BASE_URL}/api/schools`,
     studentsBySchool: `${BASE_URL}/api/schools/students`,
   },
