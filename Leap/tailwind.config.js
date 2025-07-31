@@ -81,6 +81,18 @@ export const theme = {
         screens: {
             '824px': '824px',
         },
+        extend: {
+            animation: {
+                'fade-in': 'fadeIn 0.5s ease-out',
+            },
+            keyframes: {
+                fadeIn: {
+                    '0%': { opacity: 0 },
+                    '100%': { opacity: 1 },
+                },
+            },
+        }
+
     },
 };
 export const plugins = [tailwindcssAnimate];

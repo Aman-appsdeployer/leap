@@ -23,6 +23,7 @@ const endpoints = {
     sections: `${BASE_URL}/api/batches/sections`,
     sessions: `${BASE_URL}/api/batches/sessions`,
     all: `${BASE_URL}/api/batches/batches`,
+    promote: `${BASE_URL}/api/batches/promote`,
   },
   quizzes: {
     create: `${BASE_URL}/api/quizzes/quiz`,
@@ -37,6 +38,8 @@ const endpoints = {
     attemptsByQuiz: (quizId: number) => `${BASE_URL}/api/quizzes/attempts/${quizId}`,
     attemptCount: `${BASE_URL}/api/quizzes/attempt/count`,
     quizData: `${BASE_URL}/api/quizzes/quiz-data`,
+    assignedToBatch: (batchId: number) => `${BASE_URL}/api/quizzes/assign-quiz-to-batch/batch/${batchId}`,
+
   },
   badges: {
     getByEmail: (email: string) => `${BASE_URL}/student/badges/${email}`,

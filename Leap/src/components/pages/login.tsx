@@ -31,16 +31,23 @@ const Login: React.FC = () => {
       });
 
       if (response.data.success) {
-        const { token, student, redirect } = response.data;
+        const { token, student, teacher, redirect } = response.data;
 
+        // ✅ Save token and user type
         localStorage.setItem("token", token);
         localStorage.setItem("user_type", userType.toLowerCase());
 
-        // ✅ Save student data (required for UploadProject)
+        // ✅ Save student info
         if (userType.toLowerCase() === "students" && student) {
           localStorage.setItem("student", JSON.stringify(student));
         }
 
+        // ✅ Save teacher ID
+        if (userType.toLowerCase() === "teacher" && teacher) {
+          localStorage.setItem("teacher_id", teacher.teacher_details_id_pk);
+        }
+
+        // ✅ Navigate after login
         navigate(redirect);
       } else {
         setError(response.data.message || "Invalid credentials");
@@ -147,13 +154,6 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-
-
-
-
-
-
-
 
 
 
@@ -291,23 +291,3 @@ export default Login;
 // };
 
 // export default Login;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

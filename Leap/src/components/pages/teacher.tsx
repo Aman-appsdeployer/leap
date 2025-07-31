@@ -53,6 +53,9 @@ const QuizManagement = () => {
   const [editingQuizId, setEditingQuizId] = useState(null);
   const [reportData, setReportData] = useState([]);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [allQuizzes, setAllQuizzes] = useState([]);
+  const [description, setDescription] = useState("");
 
   const addQuestion = () =>
     setQuestions([...questions, { question: "", options: [""], answer: "" }]);
@@ -114,8 +117,8 @@ const QuizManagement = () => {
     }
     const payload = {
       quiz_title: quizTitle,
-      description: "",
-      created_by_mentor_id_fk: 1,
+      description: description,
+      created_by_mentor_id_fk: Number(localStorage.getItem("teacher_id")),
       questions: questions.map((q) => ({
         question_text: q.question,
         question_type: "mcq",
@@ -159,6 +162,7 @@ const QuizManagement = () => {
   const fetchQuizzes = async () => {
     try {
       const res = await axios.get(endpoints.quizzes.getAll);
+      setAllQuizzes(res.data);
       setQuizzes(res.data);
     } catch (err) {
       alert("Failed to fetch quizzes.");
@@ -288,6 +292,12 @@ const QuizManagement = () => {
           value={quizTitle}
           onChange={(e) => setQuizTitle(e.target.value)}
         />
+        <Textarea
+          className="w-full mb-6 text-base"
+          placeholder="Enter Quiz Description (optional)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
 
         {questions.map((q, qIndex) => (
           <Card key={qIndex} className="mb-6 border shadow-sm">
@@ -368,25 +378,49 @@ const QuizManagement = () => {
         </div>
       </div>
       {/* 🔍 Search Quiz */}
-      <div className="max-w-3xl mx-auto mt-10">
+      {/* <div className="max-w-3xl mx-auto mt-10">
         <Input
           className="w-full mb-4 text-base"
           placeholder="Search your quizzes..."
           onChange={(e) => {
             const value = e.target.value.toLowerCase();
-            fetchQuizzes(); // Re-fetch before filtering
-            setQuizzes((prev) =>
-              prev.filter((q) => q.quiz_title.toLowerCase().includes(value))
-            );
+
+            setQuizzes((prev) => {
+              const matched = prev.filter((q) =>
+                q.quiz_title.toLowerCase().includes(value)
+              );
+              const unmatched = prev.filter(
+                (q) => !q.quiz_title.toLowerCase().includes(value)
+              );
+              return [...matched, ...unmatched];
+            });
           }}
         />
-      </div>
+      </div> */}
 
       {/* Quiz List */}
       <div className="mt-12 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">
-          Your Created Quizzes
-        </h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Your Created Quizzes
+          </h2>
+          <input
+            type="text"
+            placeholder="Search quizzes..."
+            className="border p-2 rounded-lg text-base w-96"
+            onChange={(e) => {
+              const query = e.target.value.toLowerCase();
+              setQuizzes((prev) =>
+                [...prev].sort((a, b) => {
+                  const aMatch = a.quiz_title.toLowerCase().includes(query);
+                  const bMatch = b.quiz_title.toLowerCase().includes(query);
+                  return aMatch === bMatch ? 0 : aMatch ? -1 : 1;
+                })
+              );
+            }}
+          />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {quizzes.map((quiz) => (
             <div
@@ -412,10 +446,40 @@ const QuizManagement = () => {
             >
               <div>
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2 line-clamp-1">
-                  {quiz.quiz_title}
+                  {searchQuery ? (
+                    <>
+                      {quiz.quiz_title
+                        .split(new RegExp(`(${searchQuery})`, "gi"))
+                        .map((part, i) =>
+                          part.toLowerCase() === searchQuery.toLowerCase() ? (
+                            <span
+                              key={i}
+                              className="bg-yellow-200 px-1 rounded"
+                            >
+                              {part}
+                            </span>
+                          ) : (
+                            part
+                          )
+                        )}
+                    </>
+                  ) : (
+                    quiz.quiz_title
+                  )}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-xl text-red-500 dark:text-red-500 mt-1">
+                  {quiz.description}
+                </p>
+
+                {/* <p className="text-sm text-gray-500 dark:text-gray-400">
                   Double click to view details
+                </p> */}
+
+                <p className="text-xs text-blue-700 mt-1">
+                  Created on:{" "}
+                  {quiz.start_time
+                    ? new Date(quiz.start_time).toLocaleString()
+                    : "N/A"}
                 </p>
               </div>
 
@@ -427,13 +491,13 @@ const QuizManagement = () => {
                 >
                   <Edit2 size={18} />
                 </button>
-                <button
+                {/* <button
                   className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow"
                   onClick={() => handleDelete(quiz.quiz_id)}
                   title="Delete Quiz"
                 >
                   <Trash size={18} />
-                </button>
+                </button> */}
                 <button
                   className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow"
                   onClick={() => handleViewReport(quiz.quiz_id)}
@@ -529,6 +593,9 @@ const Teacher = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("teacher_id");
+    localStorage.removeItem("user_type");
     setIsLoggedIn(false);
     alert("You have logged out successfully.");
     navigate("/login");
@@ -536,8 +603,16 @@ const Teacher = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    const teacherId = localStorage.getItem("teacher_id");
 
+    //  Redirect if token or teacher_id is missing
+    if (!token || !teacherId) {
+      alert("You are not logged in. Please log in.");
+      navigate("/login");
+      return;
+    }
+
+    //  Fetch teacher info to display
     axios
       .get(endpoints.dashboard.teacher, {
         headers: {
@@ -546,9 +621,12 @@ const Teacher = () => {
       })
       .then((res) => {
         setTeacherName(res.data.name);
+        localStorage.setItem("teacher_id", res.data.teacher_details_id_pk); // refresh ID if needed
       })
       .catch((err) => {
-        console.error("Failed to fetch teacher info", err);
+        console.error(" Failed to fetch teacher info", err);
+        alert("Session expired. Please log in again.");
+        navigate("/login");
       });
   }, []);
 
@@ -600,6 +678,13 @@ const Teacher = () => {
               }
             >
               <FilePlus className="mr-2" /> Post Create
+            </li>
+            <li
+              className="flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-pointer"
+              onClick={() => navigate("/teacher/PromoteStudents")}
+            >
+              <Layers className="mr-2" />
+              Promote Batch
             </li>
           </ul>
         </nav>

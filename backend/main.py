@@ -8,9 +8,9 @@ import bcrypt
 import hashlib
 import jwt
 from datetime import datetime, timedelta
-from typing import Optional
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 # Load environment variables
 load_dotenv()
@@ -23,7 +23,7 @@ from routers import student_routes
 from routers.post_routes import router as post_router
 
 # === Configuration ===
-SECRET_KEY = os.getenv("JWT_SECRET", "CHANGE_ME_IN_PRODUCTION")
+SECRET_KEY = os.getenv("JWT_SECRET", "AMAN")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
@@ -31,9 +31,6 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 # === FastAPI App ===
 app = FastAPI()
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
-
 
 # === CORS ===
 app.add_middleware(
@@ -72,7 +69,6 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
 
 def get_current_user(authorization: str = Header(...)):
     try:
-        print("Auth Header:", authorization)  
         scheme, token = authorization.split()
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid auth header")
@@ -84,7 +80,6 @@ def get_current_user(authorization: str = Header(...)):
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.PyJWTError as e:
-        print("JWT Error:", str(e))
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # === Routes ===
@@ -102,15 +97,29 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if expected_type is None:
         raise HTTPException(status_code=400, detail="Invalid user type selected")
 
+    lookup_username = data.username
+
+    #  Handle student login by ID (convert ID to email)
+    if expected_type == 1:
+        student_by_id = None
+        if data.username.isdigit():
+            student_by_id = db.execute(text("""
+                SELECT email FROM student_details WHERE student_details_id_pk = :id
+            """), {"id": int(data.username)}).fetchone()
+
+        if student_by_id:
+            lookup_username = student_by_id.email  # Use associated email
+
+    #  Find user in user_login by username (email or original username)
     result = db.execute(text("""
         SELECT ul.username, ul.password, ul.user_type_id_fk, ut.user_type, ut.active_status
         FROM user_login ul
         JOIN user_type ut ON ul.user_type_id_fk = ut.user_type_id_pk
         WHERE ul.username = :username
-    """), {"username": data.username}).fetchone()
+    """), {"username": lookup_username}).fetchone()
 
     if not result:
-        raise HTTPException(status_code=401, detail="Invalid username")
+        raise HTTPException(status_code=401, detail="Invalid username or student ID")
 
     stored_username, stored_password, user_type_id_fk, user_type_str, user_type_status = result
 
@@ -120,21 +129,17 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if user_type_id_fk != expected_type:
         raise HTTPException(status_code=403, detail=f"Login not allowed as {data.user_type}")
 
-    is_verified, new_hash = verify_password(data.password, stored_password)
-    if not is_verified:
-        raise HTTPException(status_code=401, detail="Invalid password")
+   
 
-    if new_hash:
-        db.execute(text("UPDATE user_login SET password = :password WHERE username = :username"), {
-            "password": new_hash,
-            "username": stored_username
-        })
+    
         db.commit()
 
     access_token = create_access_token(data={"sub": stored_username})
     redirect_path = "/student" if expected_type == 1 else "/teacher"
-    
+
     student_data = None
+    teacher_data = None
+
     if expected_type == 1:
         student = db.execute(text("""
             SELECT student_details_id_pk, school_id_fk, class_id_fk, section_id_fk, name
@@ -153,14 +158,29 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             "name": student.name
         }
 
+    if expected_type == 2:
+        teacher = db.execute(text("""
+            SELECT teacher_details_id_pk, name
+            FROM teacher_details
+            WHERE email = :email
+        """), {"email": stored_username}).fetchone()
+
+        if not teacher:
+            raise HTTPException(status_code=404, detail="Teacher record not found")
+
+        teacher_data = {
+            "teacher_details_id_pk": teacher.teacher_details_id_pk,
+            "name": teacher.name
+        }
+
     return {
         "success": True,
         "message": "Login successful",
         "token": access_token,
         "redirect": redirect_path,
-        "student": student_data
+        "student": student_data,
+        "teacher": teacher_data
     }
-
 @app.get("/student")
 def student_dashboard(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     result = db.execute(text("""
@@ -176,14 +196,19 @@ def student_dashboard(current_user: str = Depends(get_current_user), db: Session
 @app.get("/teacher")
 def teacher_dashboard(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     result = db.execute(text("""
-        SELECT name
+        SELECT teacher_details_id_pk, name
         FROM teacher_details
         WHERE email = :email
     """), {"email": current_user}).fetchone()
 
     if result:
-        return {"name": result.name}
+        return {
+            "teacher_details_id_pk": result.teacher_details_id_pk,
+            "name": result.name
+        }
+
     raise HTTPException(status_code=404, detail="Teacher not found")
+
 
 # === Routers ===
 app.include_router(school_router)
@@ -194,14 +219,6 @@ app.include_router(public_router)
 app.include_router(badge_router)
 app.include_router(project_router)
 app.include_router(post_router)
-
-
-
-
-
-
-
-
 
 
 
